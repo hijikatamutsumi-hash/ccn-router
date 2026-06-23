@@ -1230,6 +1230,7 @@ function doAuth(){
     sessionStorage.setItem(AUTH_KEY, '1');
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('auth-error').textContent='';
+    syncFromGAS();
   } else {
     document.getElementById('auth-error').textContent='パスワードが違います';
     document.getElementById('auth-pw').value='';
@@ -1240,13 +1241,13 @@ function doAuth(){
 function checkAuth(){
   if(sessionStorage.getItem(AUTH_KEY) === '1'){
     document.getElementById('auth-screen').style.display='none';
+    syncFromGAS();
   }
 }
 
 load();
 checkAuth();
 initWiz();
-syncFromGAS();
 </script>
 </body>
 </html>
