@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCN ルータ在庫管理</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1f2937;
+  --border: #30363d;
+  --border2: #374151;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #6e7681;
+  --accent: #58a6ff;
+  --accent2: #1f6feb;
+  --green: #3fb950;
+  --green-bg: rgba(63,185,80,0.15);
+  --yellow: #d29922;
+  --yellow-bg: rgba(210,153,34,0.15);
+  --red: #f85149;
+  --red-bg: rgba(248,81,73,0.15);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;}
+
+/* Topbar */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;height:56px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-size:17px;font-weight:700;color:var(--accent);}
+.topbar-logo span{color:var(--text2);font-weight:400;font-size:14px;}
+.topbar-spacer{flex:1;}
+
+/* Nav */
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{flex-shrink:0;padding:13px 15px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;white-space:nowrap;transition:all .2s;}
+.nav-btn:hover{color:var(--text);background:rgba(255,255,255,0.04);}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* Main */
+.main{padding:16px;max-width:1100px;margin:0 auto;width:100%;}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.card+.card{margin-top:12px;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.card-title{font-size:15px;font-weight:600;}
+
+/* Grid */
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+
+/* Office Cards */
+.oc{background:rgba(31,41,55,0.8);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;}
+.oc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.oc.c-green::before{background:var(--green);}
+.oc.c-yellow::before{background:var(--yellow);}
+.oc.c-red::before{background:var(--red);}
+.oc-name{font-size:17px;font-weight:700;margin-bottom:12px;}
+.oc-stats{display:flex;gap:16px;margin-bottom:12px;}
+.oc-stat{text-align:center;}
+.oc-stat-v{font-size:22px;font-weight:700;line-height:1;}
+.oc-stat-v.av{color:var(--green);}
+.oc-stat-v.ins{color:var(--accent);}
+.oc-stat-l{font-size:11px;color:var(--text2);margin-top:2px;}
+.prog{height:6px;background:var(--bg3);border-radius:99px;overflow:hidden;}
+.prog-f{height:100%;border-radius:99px;transition:width .4s;}
+.prog-f.c-green{background:var(--green);}
+.prog-f.c-yellow{background:var(--yellow);}
+.prog-f.c-red{background:var(--red);}
+.oc-warn{margin-top:8px;font-size:12px;color:var(--red);font-weight:600;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;}
+.btn-p{background:var(--accent);color:#fff;}
+.btn-p:hover{background:#79b8ff;}
+.btn-s{background:var(--bg3);color:var(--text);border:1px solid var(--border2);}
+.btn-s:hover{background:var(--border);}
+.btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,81,73,.3);}
+.btn-d:hover{background:rgba(248,81,73,.25);}
+.btn-sm{padding:6px 12px;font-size:13px;}
+.btn-lg{padding:14px 20px;font-size:15px;width:100%;justify-content:center;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Form */
+.fg{margin-bottom:14px;}
+.fl{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px;}
+.fc{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:10px 12px;font-size:14px;outline:none;transition:border-color .2s;}
+.fc:focus{border-color:var(--accent);}
+.fc::placeholder{color:var(--text3);}
+select.fc{cursor:pointer;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:99px;font-size:12px;font-weight:600;}
+.b-green{background:var(--green-bg);color:var(--green);}
+.b-red{background:var(--red-bg);color:var(--red);}
+.b-blue{background:rgba(88,166,255,.15);color:var(--accent);}
+.b-yellow{background:var(--yellow-bg);color:var(--yellow);}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th{text-align:left;padding:9px 12px;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);}
+td{padding:9px 12px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* Steps */
+.steps{display:flex;align-items:center;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;}
+.step-item{display:flex;align-items:center;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;transition:all .3s;}
+.step-item.active .step-num{background:var(--accent2);border-color:var(--accent);color:#fff;}
+.step-item.done .step-num{background:var(--green);border-color:var(--green);color:#fff;}
+.step-lbl{font-size:11px;color:var(--text2);margin-left:5px;white-space:nowrap;}
+.step-item.active .step-lbl{color:var(--accent);font-weight:600;}
+.step-line{flex:1;height:2px;background:var(--border2);margin:0 6px;min-width:16px;}
+.step-item.done~.step-item .step-num{}
+
+/* Router chips */
+.r-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:300px;overflow-y:auto;}
+.r-chip{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg3);border:2px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;}
+.r-chip:hover{border-color:var(--accent);}
+.r-chip.sel{background:rgba(88,166,255,.12);border-color:var(--accent);}
+.r-chip input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+.r-chip label{font-size:14px;font-weight:600;cursor:pointer;}
+
+/* Warning */
+.warn-box{background:var(--yellow-bg);border:1px solid rgba(210,153,34,.4);border-radius:var(--radius-sm);padding:12px 14px;display:flex;gap:10px;font-size:13px;color:var(--yellow);}
+
+/* Confirm rows */
+.cr{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.cr:last-child{border-bottom:none;}
+.ck{color:var(--text2);width:110px;flex-shrink:0;}
+.cv{font-weight:600;}
+
+/* History */
+.hist-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;}
+.hist-hd{padding:13px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.hist-hd:hover{background:rgba(255,255,255,.02);}
+.hist-bd{padding:12px 16px;border-top:1px solid var(--border);display:none;}
+.hist-bd.open{display:block;}
+.mac-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.mac-tag{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;font-family:monospace;}
+
+/* Bar chart */
+.bar-chart{margin-top:8px;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.bar-lbl{font-size:12px;width:72px;flex-shrink:0;text-align:right;color:var(--text2);}
+.bar-track{flex:1;height:18px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s;}
+.bar-val{font-size:13px;font-weight:600;width:28px;}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);}
+.modal-hd{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-bd{padding:20px;}
+.modal-ft{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+.close-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;line-height:1;}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:20px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;}
+.toast{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 15px;font-size:13px;display:flex;gap:8px;align-items:center;box-shadow:var(--shadow);animation:tIn .25s ease;}
+.toast.ok{border-left:4px solid var(--green);}
+.toast.er{border-left:4px solid var(--red);}
+.toast.in{border-left:4px solid var(--accent);}
+@keyframes tIn{from{transform:translateX(50px);opacity:0}to{transform:none;opacity:1}}
+
+/* Area tag */
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.atag{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:99px;padding:5px 12px;font-size:13px;}
+.atag-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;}
+.atag-del:hover{color:var(--red);}
+
+/* Cust list */
+.cust-list{max-height:220px;overflow-y:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);}
+.cust-row{padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px;transition:background .15s;}
+.cust-row:last-child{border-bottom:none;}
+.cust-row:hover{background:rgba(88,166,255,.07);}
+.cust-row.sel{background:rgba(88,166,255,.12);font-weight:700;}
+
+/* Util */
+.hidden{display:none!important;}
+.flex{display:flex;}
+.flex-col{flex-direction:column;}
+.gap-8{gap:8px;}
+.gap-12{gap:12px;}
+.items-c{align-items:center;}
+.jc-sb{justify-content:space-between;}
+.mt-8{margin-top:8px;}
+.mt-12{margin-top:12px;}
+.mt-16{margin-top:16px;}
+.mb-8{margin-bottom:8px;}
+.mb-12{margin-bottom:12px;}
+.mb-16{margin-bottom:16px;}
+.sec-title{font-size:19px;font-weight:700;margin-bottom:16px;}
+.t-sm{font-size:13px;}
+.t-xs{font-size:12px;}
+.t-muted{color:var(--text2);}
+.t-danger{color:var(--red);}
+.t-success{color:var(--green);}
+.divider{height:1px;background:var(--border);margin:16px 0;}
+code{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:12px;}
+
+/* Step1 office selector cards */
+.s1-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.s1-card{background:rgba(31,41,55,0.8);backdrop-filter:blur(10px);border:2px solid var(--border2);border-radius:var(--radius);padding:18px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;text-align:center;}
+.s1-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;transition:opacity .2s;}
+.s1-card.sc-green::before{background:var(--green);}
+.s1-card.sc-yellow::before{background:var(--yellow);}
+.s1-card.sc-red::before{background:var(--red);}
+.s1-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+.s1-card.picked{border-color:var(--accent);background:rgba(88,166,255,0.1);box-shadow:0 0 0 1px var(--accent);}
+.s1-card.zero{opacity:.5;cursor:not-allowed;}
+.s1-card.zero:hover{transform:none;border-color:var(--border2);}
+.s1-name{font-size:17px;font-weight:700;margin-bottom:10px;}
+.s1-stats{display:flex;justify-content:center;gap:14px;margin-bottom:8px;}
+.s1-stat{text-align:center;}
+.s1-v{font-size:20px;font-weight:700;line-height:1;}
+.s1-v.av{color:var(--green);}
+.s1-v.ins{color:var(--accent);}
+.s1-l{font-size:10px;color:var(--text2);margin-top:1px;}
+.s1-prog{height:4px;background:var(--bg3);border-radius:99px;overflow:hidden;margin-top:4px;}
+.s1-prog-f{height:100%;border-radius:99px;}
+.s1-prog-f.sc-green{background:var(--green);}
+.s1-prog-f.sc-yellow{background:var(--yellow);}
+.s1-prog-f.sc-red{background:var(--red);}
+.s1-warn{font-size:11px;color:var(--red);font-weight:600;margin-top:6px;}
+.s1-zero-msg{font-size:12px;color:var(--text3);margin-top:6px;}
+.s1-selected-banner{background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:14px;}
+
+@media(max-width:600px){
+  .topbar{height:50px;}
+  .main{padding:12px;}
+  .oc-stats{gap:10px;}
+  .step-lbl{display:none;}
+  .ck{width:80px;}
+  .s1-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .s1-name{font-size:15px;}
+  .s1-v{font-size:17px;}
+}
+/* Auth */
+.auth-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px;text-align:center;}
+.auth-logo{font-size:22px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.auth-error{color:var(--red);font-size:13px;margin-top:10px;min-height:18px;}
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">CCN</div>
+    <div class="auth-sub">ルータ在庫管理システム</div>
+    <div class="fg">
+      <label class="fl" style="text-align:left">パスワード</label>
+      <input class="fc" type="password" id="auth-pw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doAuth()">
+    </div>
+    <button class="btn btn-p btn-lg" onclick="doAuth()">ログイン</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+<div id="app">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-logo">CCN <span>ルータ在庫管理</span></div>
+    <div class="topbar-spacer"></div>
+    <button class="btn btn-s btn-sm" onclick="openModal('modal-backup')">💾 バックアップ</button>
+  </header>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <button class="nav-btn active" data-tab="install" onclick="tab('install')">➕ 設置登録</button>
+    <button class="nav-btn" data-tab="dashboard" onclick="tab('dashboard')">🏠 ダッシュボード</button>
+    <button class="nav-btn" data-tab="inventory" onclick="tab('inventory')">📦 在庫一覧</button>
+    <button class="nav-btn" data-tab="history" onclick="tab('history')">📋 設置履歴</button>
+    <button class="nav-btn" data-tab="flow" onclick="tab('flow')">🔄 エリア分析</button>
+    <button class="nav-btn" data-tab="settings" onclick="tab('settings')">⚙️ 設定</button>
+  </nav>
+
+  <main class="main">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="p-dashboard" class="hidden">
+      <div class="flex items-c jc-sb mb-16">
+        <h1 class="sec-title" style="margin-bottom:0">ダッシュボード</h1>
+        <span class="t-sm t-muted" id="dash-updated"></span>
+      </div>
+      <div class="g3" id="dash-cards"></div>
+    </div>
+
+    <!-- ===== INSTALL ===== -->
+    <div id="p-install">
+      <h1 class="sec-title">設置登録</h1>
+
+      <!-- Steps -->
+      <div class="steps" id="wiz-steps">
+        <div class="step-item active" data-s="1"><div class="step-num">1</div><div class="step-lbl">顧客局</div></div>
+        <div class="step-line"></div>
+        <div class="step-item" data-s="2"><div class="step-num">2</div><div class="step-lbl">顧客番号</div></div>
+        <div class="step-line"></div>
+        <div class="step-item" data-s="3"><div class="step-num">3</div><div class="step-lbl">ルータ局</div></div>
+        <div class="step-line"></div>
+        <div class="step-item" data-s="4"><div class="step-num">4</div><div class="step-lbl">ルータ選択</div></div>
+        <div class="step-line"></div>
+        <div class="step-item" data-s="5"><div class="step-num">5</div><div class="step-lbl">確認</div></div>
+        <div class="step-line"></div>
+        <div class="step-item" data-s="6"><div class="step-num">6</div><div class="step-lbl">完了</div></div>
+      </div>
+
+      <!-- Panel 1 -->
+      <div class="card" id="wp1">
+        <div class="card-hd"><div class="card-title">STEP 1：顧客局選択</div></div>
+        <div id="s1-selected-banner" class="s1-selected-banner hidden">
+          <span style="font-size:18px">✓</span>
+          <span>選択中：<strong id="s1-selected-name"></strong></span>
+          <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="clearS1()">変更</button>
+        </div>
+        <div class="s1-grid" id="s1-grid"></div>
+        <button class="btn btn-p btn-lg mt-16" id="s1-next-btn" onclick="wNext(1)" disabled>次へ →</button>
+      </div>
+
+      <!-- Panel 2 -->
+      <div class="card hidden" id="wp2">
+        <div class="card-hd">
+          <div class="card-title">STEP 2：顧客番号選択</div>
+          <div id="gas-status" class="badge b-blue" style="font-size:11px">📡 取得中...</div>
+        </div>
+        <div id="gas-info" class="hidden" style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--text2);"></div>
+        <div id="gas-error" class="warn-box hidden mb-12" style="font-size:13px;">
+          ⚠ <div id="gas-error-txt"></div>
+        </div>
+        <div class="fg">
+          <input class="fc" id="w-csearch" placeholder="顧客番号を検索..." oninput="filterCust()">
+        </div>
+        <div class="fg">
+          <label class="fl">当日分 顧客番号</label>
+          <div class="cust-list" id="w-clist"></div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-s" onclick="wBack(2)">← 戻る</button>
+          <button class="btn btn-p" style="flex:1" onclick="wNext(2)">次へ →</button>
+        </div>
+      </div>
+
+      <!-- Panel 3 -->
+      <div class="card hidden" id="wp3">
+        <div class="card-hd"><div class="card-title">STEP 3：ルータ局選択</div></div>
+        <div class="fg">
+          <label class="fl">ルータ所属局</label>
+          <select class="fc" id="w-roff" onchange="checkMismatch()"></select>
+        </div>
+        <div id="w-mismatch" class="warn-box mt-8 hidden">
+          ⚠ <div><strong>他局ルータ使用</strong><br><span id="w-mismatch-txt"></span><br>登録は可能です。</div>
+        </div>
+        <div class="flex gap-8 mt-16">
+          <button class="btn btn-s" onclick="wBack(3)">← 戻る</button>
+          <button class="btn btn-p" style="flex:1" onclick="wNext(3)">次へ →</button>
+        </div>
+      </div>
+
+      <!-- Panel 4 -->
+      <div class="card hidden" id="wp4">
+        <div class="card-hd">
+          <div>
+            <div class="card-title">STEP 4：ルータ選択</div>
+            <div class="t-sm t-muted mt-8" id="w-roff-lbl"></div>
+          </div>
+          <span id="w-sel-cnt" class="badge b-blue">0台選択</span>
+        </div>
+        <div class="r-grid" id="w-rgrid"></div>
+        <div class="flex gap-8 mt-16">
+          <button class="btn btn-s" onclick="wBack(4)">← 戻る</button>
+          <button class="btn btn-p" style="flex:1" onclick="wNext(4)">次へ →</button>
+        </div>
+      </div>
+
+      <!-- Panel 5 -->
+      <div class="card hidden" id="wp5">
+        <div class="card-hd"><div class="card-title">STEP 5：設置内容確認</div></div>
+        <div id="w-confirm"></div>
+        <div class="flex gap-8 mt-16">
+          <button class="btn btn-s" onclick="wBack(5)">← 戻る</button>
+          <button class="btn btn-p" style="flex:1" onclick="doInstall()">✅ 設置を登録する</button>
+        </div>
+      </div>
+
+      <!-- Panel 6 -->
+      <div class="card hidden" id="wp6">
+        <div style="text-align:center;padding:32px 0">
+          <div style="font-size:60px;margin-bottom:14px">✅</div>
+          <div style="font-size:21px;font-weight:700;color:var(--green);margin-bottom:8px">設置登録完了</div>
+          <div id="w-done-txt" class="t-muted mb-16"></div>
+          <button class="btn btn-p btn-lg" style="max-width:240px;margin:0 auto" onclick="wReset()">新しい設置を登録</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== INVENTORY ===== -->
+    <div id="p-inventory" class="hidden">
+      <div class="flex items-c jc-sb mb-12">
+        <h1 class="sec-title" style="margin-bottom:0">在庫一覧</h1>
+        <button class="btn btn-s btn-sm" onclick="openModal('modal-addinv')">＋ 在庫追加</button>
+      </div>
+      <div class="card mb-12">
+        <div class="flex gap-8" style="flex-wrap:wrap">
+          <input class="fc" id="inv-q" placeholder="MACアドレス検索..." oninput="renderInv()" style="max-width:220px">
+          <select class="fc" id="inv-off" onchange="renderInv()" style="max-width:150px">
+            <option value="">全局</option>
+          </select>
+          <select class="fc" id="inv-st" onchange="renderInv()" style="max-width:150px">
+            <option value="">全状態</option>
+            <option value="available">在庫あり</option>
+            <option value="installed">設置済</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>MACアドレス</th><th>局</th><th>状態</th></tr></thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== HISTORY ===== -->
+    <div id="p-history" class="hidden">
+      <div class="flex items-c jc-sb mb-16">
+        <h1 class="sec-title" style="margin-bottom:0">設置履歴</h1>
+        <div class="flex gap-8">
+          <button class="btn btn-s btn-sm" onclick="exportCSV()">⬇ CSV</button>
+          <button class="btn btn-s btn-sm" onclick="exportExcel()">⬇ Excel</button>
+        </div>
+      </div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- ===== FLOW ===== -->
+    <div id="p-flow" class="hidden">
+      <h1 class="sec-title">エリア間利用分析 <span class="t-sm t-muted">（直近30日）</span></h1>
+      <div class="g2">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">流出（他局へ貸出）</div></div>
+          <div id="flow-out"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">流入（他局から借入）</div></div>
+          <div id="flow-in"></div>
+        </div>
+      </div>
+      <div class="card mt-12">
+        <div class="card-hd"><div class="card-title">フロー詳細マトリクス</div><div class="t-xs t-muted">ルータ局 → 顧客局</div></div>
+        <div class="tbl-wrap"><table><thead id="flow-th"></thead><tbody id="flow-tb"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div id="p-settings" class="hidden">
+      <h1 class="sec-title">設定</h1>
+      <div class="card mb-12">
+        <div class="card-hd"><div class="card-title">管理局</div></div>
+        <div class="tag-list" id="off-tags"></div>
+        <div class="flex gap-8">
+          <input class="fc" id="new-off" placeholder="局名を入力" style="max-width:180px" onkeydown="if(event.key==='Enter')addOffice()">
+          <button class="btn btn-p" onclick="addOffice()">追加</button>
+        </div>
+      </div>
+      <div class="card mb-12">
+        <div class="card-hd"><div class="card-title">顧客データ インポート</div></div>
+        <div class="t-sm t-muted mb-8">フォーマット: <code>office,customerNo</code>（1行目ヘッダ）</div>
+        <textarea class="fc" id="cust-csv" rows="6" placeholder="office,customerNo&#10;春日井,56422&#10;岐阜,1845388"></textarea>
+        <button class="btn btn-p mt-12" onclick="importCustCSV()">CSVを取り込む</button>
+      </div>
+      <div class="card" style="border-color:rgba(248,81,73,.3)">
+        <div class="card-hd"><div class="card-title t-danger">データリセット</div></div>
+        <p class="t-sm t-muted mb-12">全データを初期化します。この操作は元に戻せません。</p>
+        <button class="btn btn-d" onclick="doReset()">全データをリセット</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+<!-- Backup -->
+<div class="overlay hidden" id="modal-backup" onclick="if(event.target===this)closeModal('modal-backup')">
+  <div class="modal">
+    <div class="modal-hd"><span class="card-title">バックアップ</span><button class="close-btn" onclick="closeModal('modal-backup')">✕</button></div>
+    <div class="modal-bd">
+      <button class="btn btn-s w-full mb-12" onclick="exportBackup()">⬇ backup.json をダウンロード</button>
+      <div class="divider" style="margin:8px 0"></div>
+      <label class="fl">バックアップを読み込む</label>
+      <input type="file" id="bk-file" accept=".json" class="fc" style="padding:8px">
+      <button class="btn btn-p mt-12 w-full" onclick="importBackup()">⬆ 読み込む</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Inventory -->
+<div class="overlay hidden" id="modal-addinv" onclick="if(event.target===this)closeModal('modal-addinv')">
+  <div class="modal">
+    <div class="modal-hd"><span class="card-title">在庫追加</span><button class="close-btn" onclick="closeModal('modal-addinv')">✕</button></div>
+    <div class="modal-bd">
+      <div class="fg"><label class="fl">局</label><select class="fc" id="ainv-off"></select></div>
+      <div class="fg"><label class="fl">MACアドレス（1行1つ）</label><textarea class="fc" id="ainv-macs" rows="8" placeholder="A001&#10;A002&#10;A003"></textarea></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-s" onclick="closeModal('modal-addinv')">キャンセル</button>
+      <button class="btn btn-p" onclick="bulkAdd()">一括登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let S = {
+  offices: ['春日井','岐阜','日進豊明','緑'],
+  customers: [],
+  routers: [],
+  installs: [],
+  nextId: 1001,
+};
+
+// Wizard
+let W = { step:1, cOff:'', cNo:'', rOff:'', macs:[] };
+
+// ============================================================
+// PERSIST
+// ============================================================
+function save(){ localStorage.setItem('ccn2',JSON.stringify(S)); }
+
+function load(){
+  const raw = localStorage.getItem('ccn2');
+  if(raw){ try{ S={...S,...JSON.parse(raw)}; }catch(e){} return; }
+  // Seed data
+  S.customers=[];
+  S.routers=[
+    {id:1,office:'岐阜',macAddress:'4C:85:8A:12:4B:70',status:'installed'},
+    {id:2,office:'岐阜',macAddress:'4C:85:8A:12:48:A0',status:'installed'},
+    {id:3,office:'岐阜',macAddress:'4C:85:8A:12:47:C0',status:'installed'},
+    {id:4,office:'岐阜',macAddress:'4C:85:8A:12:47:70',status:'installed'},
+    {id:5,office:'岐阜',macAddress:'4C:85:8A:16:28:00',status:'available'},
+    {id:6,office:'岐阜',macAddress:'4C:85:8A:0F:17:B0',status:'installed'},
+    {id:7,office:'岐阜',macAddress:'4C:85:8A:48:F6:50',status:'installed'},
+    {id:8,office:'岐阜',macAddress:'4C:85:8A:48:FE:00',status:'installed'},
+    {id:9,office:'岐阜',macAddress:'4C:85:8A:48:FE:60',status:'installed'},
+    {id:10,office:'岐阜',macAddress:'4C:85:8A:48:FE:A0',status:'installed'},
+    {id:11,office:'岐阜',macAddress:'4C:85:8A:13:23:30',status:'available'},
+    {id:12,office:'岐阜',macAddress:'4C:85:8A:12:F5:E0',status:'available'},
+    {id:13,office:'岐阜',macAddress:'4C:85:8A:13:31:20',status:'available'},
+    {id:14,office:'岐阜',macAddress:'4C:85:8A:13:59:B0',status:'available'},
+    {id:15,office:'岐阜',macAddress:'4C:85:8A:13:38:70',status:'available'},
+    {id:16,office:'岐阜',macAddress:'4C:85:8A:13:07:C0',status:'available'},
+    {id:17,office:'緑',macAddress:'84:E8:CB:BF:3B:90',status:'installed'},
+    {id:18,office:'緑',macAddress:'84:E8:CB:BF:CE:D0',status:'available'},
+    {id:19,office:'緑',macAddress:'84:E8:CB:BF:31:60',status:'available'},
+    {id:20,office:'緑',macAddress:'84:E8:CB:BF:CF:A0',status:'installed'},
+    {id:21,office:'緑',macAddress:'F8:94:97:E4:4F:20',status:'installed'},
+    {id:22,office:'緑',macAddress:'F8:94:97:E4:46:D0',status:'available'},
+    {id:23,office:'緑',macAddress:'F8:94:97:E4:2D:20',status:'available'},
+    {id:24,office:'緑',macAddress:'4C:85:8A:17:C2:C0',status:'available'},
+    {id:25,office:'緑',macAddress:'F8:94:97:E4:31:C0',status:'available'},
+    {id:26,office:'緑',macAddress:'F8:94:97:E4:2A:C0',status:'available'},
+    {id:27,office:'春日井',macAddress:'4C:85:8A:13:DC:50',status:'installed'},
+    {id:28,office:'春日井',macAddress:'4C:85:8A:15:25:40',status:'installed'},
+    {id:29,office:'春日井',macAddress:'4C:85:8A:15:2B:B0',status:'installed'},
+    {id:30,office:'春日井',macAddress:'4C:85:8A:13:D9:40',status:'installed'},
+    {id:31,office:'春日井',macAddress:'4C:85:8A:13:CF:B0',status:'available'},
+    {id:32,office:'春日井',macAddress:'4C:85:8A:15:1F:D0',status:'available'},
+    {id:33,office:'春日井',macAddress:'4C:85:8A:14:F8:10',status:'available'},
+    {id:34,office:'春日井',macAddress:'4C:85:8A:14:52:70',status:'available'},
+    {id:35,office:'春日井',macAddress:'4C:85:8A:13:DE:80',status:'installed'},
+    {id:36,office:'春日井',macAddress:'4C:85:8A:14:FF:70',status:'available'},
+    {id:37,office:'春日井',macAddress:'4C:85:8A:17:76:10',status:'installed'},
+    {id:38,office:'春日井',macAddress:'4C:85:8A:17:72:70',status:'installed'},
+    {id:39,office:'春日井',macAddress:'4C:85:8A:17:96:F0',status:'installed'},
+    {id:40,office:'春日井',macAddress:'4C:85:8A:17:91:70',status:'installed'},
+    {id:41,office:'春日井',macAddress:'4C:85:8A:17:8E:00',status:'installed'},
+    {id:42,office:'春日井',macAddress:'4C:85:8A:17:86:80',status:'available'},
+    {id:43,office:'春日井',macAddress:'4C:85:8A:46:FD:A0',status:'available'},
+    {id:44,office:'春日井',macAddress:'4C:85:8A:46:FE:20',status:'available'},
+    {id:45,office:'春日井',macAddress:'4C:85:8A:46:DA:D0',status:'installed'},
+    {id:46,office:'春日井',macAddress:'4C:85:8A:46:D5:E0',status:'installed'},
+    {id:47,office:'春日井',macAddress:'4C:85:8A:46:ED:F0',status:'available'},
+    {id:48,office:'春日井',macAddress:'4C:85:8A:46:EF:40',status:'available'},
+    {id:49,office:'日進豊明',macAddress:'4C:85:8A:45:32:70',status:'installed'},
+    {id:50,office:'日進豊明',macAddress:'4C:85:8A:45:85:E0',status:'installed'},
+    {id:51,office:'日進豊明',macAddress:'4C:85:8A:46:29:D0',status:'installed'},
+    {id:52,office:'日進豊明',macAddress:'4C:85:8A:46:46:A0',status:'available'},
+    {id:53,office:'日進豊明',macAddress:'4C:85:8A:46:EA:40',status:'available'},
+    {id:54,office:'日進豊明',macAddress:'4C:85:8A:12:DD:10',status:'available'},
+    {id:55,office:'日進豊明',macAddress:'4C:85:8A:12:B3:E0',status:'available'},
+    {id:56,office:'日進豊明',macAddress:'4C:85:8A:12:E3:30',status:'available'},
+    {id:57,office:'日進豊明',macAddress:'4C:85:8A:12:BE:90',status:'available'},
+    {id:58,office:'日進豊明',macAddress:'4C:85:8A:12:E3:60',status:'available'},
+    {id:59,office:'日進豊明',macAddress:'4C:85:8A:12:C2:D0',status:'available'},
+  ];
+  S.installs=[];
+  S.nextId=1001;
+  save();
+}
+
+// ============================================================
+// TAB
+// ============================================================
+function tab(name){
+  document.querySelectorAll('[id^="p-"]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('p-'+name).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  if(name==='dashboard') renderDash();
+  if(name==='inventory'){ fillOffSel('inv-off',true); renderInv(); }
+  if(name==='history') renderHist();
+  if(name==='flow') renderFlow();
+  if(name==='install') initWiz();
+  if(name==='settings') renderSettings();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDash(){
+  document.getElementById('dash-updated').textContent='更新: '+new Date().toLocaleTimeString('ja-JP');
+  const c=document.getElementById('dash-cards');
+  c.innerHTML='';
+  S.offices.forEach(off=>{
+    const total=S.routers.filter(r=>r.office===off).length;
+    const inst=S.routers.filter(r=>r.office===off&&r.status==='installed').length;
+    const avail=total-inst;
+    const pct=total>0?Math.round(inst/total*100):0;
+    let cls='c-green';
+    if(avail<=3)cls='c-red';
+    else if(avail<=5)cls='c-yellow';
+    c.innerHTML+=`
+    <div class="oc ${cls}">
+      <div class="oc-name">${off}局</div>
+      <div class="oc-stats">
+        <div class="oc-stat"><div class="oc-stat-v">${total}</div><div class="oc-stat-l">総在庫</div></div>
+        <div class="oc-stat"><div class="oc-stat-v av">${avail}</div><div class="oc-stat-l">残在庫</div></div>
+        <div class="oc-stat"><div class="oc-stat-v ins">${inst}</div><div class="oc-stat-l">設置済</div></div>
+      </div>
+      <div class="prog"><div class="prog-f ${cls}" style="width:${pct}%"></div></div>
+      <div class="t-xs t-muted mt-8">設置率 ${pct}%</div>
+      ${avail<=3?'<div class="oc-warn">⚠ 在庫残わずか — 発注推奨</div>':''}
+    </div>`;
+  });
+}
+
+// ============================================================
+// WIZARD
+// ============================================================
+function initWiz(){
+  wReset();
+}
+
+function wReset(){
+  W={step:1,cOff:'',cNo:'',rOff:'',macs:[]};
+  for(let i=1;i<=6;i++) document.getElementById('wp'+i).classList.toggle('hidden',i!==1);
+  updateSteps(1);
+  document.getElementById('w-csearch').value='';
+  renderS1Cards();
+}
+
+function renderS1Cards(){
+  const grid=document.getElementById('s1-grid');
+  const banner=document.getElementById('s1-selected-banner');
+  const nextBtn=document.getElementById('s1-next-btn');
+  banner.classList.add('hidden');
+  nextBtn.disabled=true;
+
+  grid.innerHTML=S.offices.map(off=>{
+    const total=S.routers.filter(r=>r.office===off).length;
+    const inst=S.routers.filter(r=>r.office===off&&r.status==='installed').length;
+    const avail=total-inst;
+    const pct=total>0?Math.round(inst/total*100):0;
+    let cls='sc-green';
+    if(avail<=3)cls='sc-red';
+    else if(avail<=5)cls='sc-yellow';
+    const zero=avail===0;
+    return `<div class="s1-card ${cls}${zero?' zero':''}${W.cOff===off?' picked':''}" onclick="pickS1('${off}',${zero})">
+      <div class="s1-name">${off}局</div>
+      <div class="s1-stats">
+        <div class="s1-stat"><div class="s1-v av">${avail}</div><div class="s1-l">残在庫</div></div>
+        <div class="s1-stat"><div class="s1-v ins">${inst}</div><div class="s1-l">設置済</div></div>
+        <div class="s1-stat"><div class="s1-v" style="color:var(--text2)">${total}</div><div class="s1-l">総在庫</div></div>
+      </div>
+      <div class="s1-prog"><div class="s1-prog-f ${cls}" style="width:${pct}%"></div></div>
+      ${avail<=3&&avail>0?'<div class="s1-warn">⚠ 発注推奨</div>':''}
+      ${zero?'<div class="s1-zero-msg">在庫なし</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function pickS1(off, zero){
+  if(zero) return;
+  W.cOff=off;
+  // Update card states
+  document.querySelectorAll('.s1-card').forEach(el=>{
+    const match=el.querySelector('.s1-name')?.textContent===off+'局';
+    el.classList.toggle('picked',match);
+  });
+  // Show banner
+  const banner=document.getElementById('s1-selected-banner');
+  document.getElementById('s1-selected-name').textContent=off+'局';
+  banner.classList.remove('hidden');
+  document.getElementById('s1-next-btn').disabled=false;
+}
+
+function clearS1(){
+  W.cOff='';
+  document.querySelectorAll('.s1-card').forEach(el=>el.classList.remove('picked'));
+  document.getElementById('s1-selected-banner').classList.add('hidden');
+  document.getElementById('s1-next-btn').disabled=true;
+}
+
+function updateSteps(cur){
+  document.querySelectorAll('.step-item').forEach(el=>{
+    const n=+el.dataset.s;
+    el.classList.remove('active','done');
+    if(n<cur)el.classList.add('done');
+    else if(n===cur)el.classList.add('active');
+  });
+}
+
+function gotoPanel(n){
+  for(let i=1;i<=6;i++) document.getElementById('wp'+i).classList.toggle('hidden',i!==n);
+  updateSteps(n);
+  W.step=n;
+}
+
+function wNext(from){
+  if(from===1){
+    if(!W.cOff){toast('局を選択してください','er');return;}
+    fillCustList();
+    gotoPanel(2);
+  }else if(from===2){
+    if(!W.cNo){toast('顧客番号を選択してください','er');return;}
+    fillOffSel('w-roff');
+    document.getElementById('w-roff').value=W.cOff;
+    W.rOff=W.cOff;
+    checkMismatch();
+    gotoPanel(3);
+  }else if(from===3){
+    W.rOff=document.getElementById('w-roff').value;
+    if(!W.rOff){toast('ルータ局を選択してください','er');return;}
+    document.getElementById('w-roff-lbl').textContent=W.rOff+'局の利用可能ルータ';
+    fillRGrid();
+    gotoPanel(4);
+  }else if(from===4){
+    W.macs=[...document.querySelectorAll('#w-rgrid input:checked')].map(el=>el.value);
+    if(!W.macs.length){toast('ルータを1台以上選択してください','er');return;}
+    renderConfirm();
+    gotoPanel(5);
+  }
+}
+
+function wBack(from){ gotoPanel(from-1); if(from-1===2)fillCustList(); }
+
+const GAS_URL='https://script.google.com/macros/s/AKfycbzE629-uX8k6zE4BVPr-UCgW8Y7TmZdnDL5qr6o8lk9fFllDj1lJ7SGSzfBNjASms6l4g/exec';
+
+// 当日分顧客番号キャッシュ（局ごと、日付付き）
+let todayCache = { date:'', data:[] };
+
+async function fillCustList(){
+  const statusEl=document.getElementById('gas-status');
+  const infoEl=document.getElementById('gas-info');
+  const errEl=document.getElementById('gas-error');
+  const errTxt=document.getElementById('gas-error-txt');
+  W.cNo='';
+  statusEl.textContent='📡 取得中...';
+  statusEl.className='badge b-blue';
+  infoEl.classList.add('hidden');
+  errEl.classList.add('hidden');
+  document.getElementById('w-clist').innerHTML='<div class="cust-row t-muted" style="cursor:default;text-align:center">読み込み中...</div>';
+
+  const today=new Date().toISOString().slice(0,10);
+
+  // キャッシュが今日のものならそのまま使う
+  if(todayCache.date===today && todayCache.data.length>0){
+    statusEl.textContent='✅ GAS連携済';
+    statusEl.className='badge b-green';
+    showGasInfo(todayCache.data, today, true);
+    filterCust();
+    return;
+  }
+
+  try{
+    const res = await fetch(GAS_URL, {mode:'cors'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    // レスポンス形式を柔軟に対応
+    // [{customerNo:'56422'}, ...] または ['56422', ...] または {customers:[...]}
+    let numbers=[];
+    if(Array.isArray(json)){
+      numbers=json.map(item=> typeof item==='object' ? (item.customerNo||item.お客様番号||item.no||String(item)) : String(item));
+    } else if(json && Array.isArray(json.customers)){
+      numbers=json.customers.map(item=> typeof item==='object' ? (item.customerNo||String(item)) : String(item));
+    } else if(json && Array.isArray(json.data)){
+      numbers=json.data.map(item=> typeof item==='object' ? (item.customerNo||String(item)) : String(item));
+    }
+    numbers=numbers.filter(Boolean);
+
+    todayCache={ date:today, data:numbers };
+    statusEl.textContent='✅ GAS連携済';
+    statusEl.className='badge b-green';
+    showGasInfo(numbers, today, false);
+    filterCust();
+
+  }catch(e){
+    // GAS失敗時はlocalStorageの全顧客にフォールバック
+    statusEl.textContent='⚠ オフライン';
+    statusEl.className='badge b-yellow';
+    errTxt.textContent=`GAS取得エラー（${e.message}）。localStorageの顧客データを表示しています。`;
+    errEl.classList.remove('hidden');
+    todayCache={ date:'', data:[] };
+    filterCust();
+  }
+}
+
+function showGasInfo(numbers, date, cached){
+  const el=document.getElementById('gas-info');
+  el.classList.remove('hidden');
+  el.innerHTML=`📅 ${date} の当日分 <strong>${numbers.length}件</strong> を取得${cached?' (キャッシュ)':''}`;
+}
+
+function filterCust(){
+  const q=document.getElementById('w-csearch').value.toLowerCase();
+  const today=new Date().toISOString().slice(0,10);
+  const useGas=todayCache.date===today && todayCache.data.length>0;
+
+  let rows;
+  if(useGas){
+    // GASの顧客番号をそのまま表示（局フィルタなし）
+    rows=todayCache.data
+      .filter(no=>no.toLowerCase().includes(q))
+      .map(no=>({customerNo:no}));
+  } else {
+    // フォールバック: localStorageから局フィルタして表示
+    rows=S.customers.filter(c=>c.office===W.cOff&&c.customerNo.toLowerCase().includes(q));
+  }
+
+  const el=document.getElementById('w-clist');
+  if(!rows.length){
+    el.innerHTML='<div class="cust-row t-muted" style="cursor:default">該当なし</div>';
+    return;
+  }
+  el.innerHTML=rows.map(c=>`<div class="cust-row${W.cNo===c.customerNo?' sel':''}" onclick="selCust('${c.customerNo}')">${W.cNo===c.customerNo?'✓ ':''}${c.customerNo}</div>`).join('');
+}
+
+function selCust(no){ W.cNo=no; filterCust(); }
+
+function checkMismatch(){
+  const roff=document.getElementById('w-roff')?document.getElementById('w-roff').value:W.rOff;
+  const mm=W.cOff&&roff&&W.cOff!==roff;
+  document.getElementById('w-mismatch').classList.toggle('hidden',!mm);
+  if(mm) document.getElementById('w-mismatch-txt').textContent=`顧客局：${W.cOff} ／ ルータ局：${roff}`;
+}
+
+function fillRGrid(){
+  const avail=S.routers.filter(r=>r.office===W.rOff&&r.status==='available');
+  const g=document.getElementById('w-rgrid');
+  if(!avail.length){g.innerHTML='<div class="t-muted t-sm">利用可能ルータがありません</div>';return;}
+  g.innerHTML=avail.map(r=>`
+    <label class="r-chip" id="chip-${r.macAddress}">
+      <input type="checkbox" value="${r.macAddress}" onchange="updSelCnt()">
+      <span>${r.macAddress}</span>
+    </label>`).join('');
+  updSelCnt();
+}
+
+function updSelCnt(){
+  const n=[...document.querySelectorAll('#w-rgrid input:checked')].length;
+  document.getElementById('w-sel-cnt').textContent=n+'台選択';
+  document.querySelectorAll('#w-rgrid .r-chip').forEach(c=>{
+    c.classList.toggle('sel',c.querySelector('input').checked);
+  });
+}
+
+function renderConfirm(){
+  const today=new Date().toISOString().slice(0,10);
+  const mm=W.cOff!==W.rOff;
+  document.getElementById('w-confirm').innerHTML=`
+    ${mm?`<div class="warn-box mb-12">⚠ <div><strong>他局ルータ使用</strong><br>顧客局：${W.cOff} ／ ルータ局：${W.rOff}</div></div>`:''}
+    <div class="cr"><div class="ck">設置日</div><div class="cv">${today}</div></div>
+    <div class="cr"><div class="ck">顧客局</div><div class="cv">${W.cOff}</div></div>
+    <div class="cr"><div class="ck">顧客番号</div><div class="cv">${W.cNo}</div></div>
+    <div class="cr"><div class="ck">ルータ局</div><div class="cv">${W.rOff}</div></div>
+    <div class="cr"><div class="ck">選択台数</div><div class="cv">${W.macs.length}台</div></div>
+    <div class="cr"><div class="ck">MACアドレス</div><div class="cv"><div class="mac-list">${W.macs.map(m=>`<span class="mac-tag">${m}</span>`).join('')}</div></div></div>`;
+}
+
+function doInstall(){
+  const today=new Date().toISOString().slice(0,10);
+  const iid=S.nextId++;
+  W.macs.forEach(mac=>{
+    S.installs.push({installId:iid,installDate:today,customerOffice:W.cOff,customerNo:W.cNo,routerOffice:W.rOff,macAddress:mac});
+    const r=S.routers.find(r=>r.macAddress===mac);
+    if(r)r.status='installed';
+  });
+  save();
+  document.getElementById('w-done-txt').textContent=`設置ID: ${iid} ／ ${W.macs.length}台を登録しました`;
+  gotoPanel(6);
+  toast('設置登録しました','ok');
+}
+
+// ============================================================
+// INVENTORY
+// ============================================================
+function renderInv(){
+  const q=document.getElementById('inv-q').value.toLowerCase();
+  const off=document.getElementById('inv-off').value;
+  const st=document.getElementById('inv-st').value;
+  const rows=S.routers.filter(r=>
+    r.macAddress.toLowerCase().includes(q)&&
+    (!off||r.office===off)&&
+    (!st||r.status===st)
+  );
+  const tb=document.getElementById('inv-tbody');
+  tb.innerHTML=rows.length?rows.map(r=>`
+    <tr>
+      <td style="font-family:monospace;font-weight:600">${r.macAddress}</td>
+      <td>${r.office}局</td>
+      <td>${r.status==='available'?'<span class="badge b-green">在庫あり</span>':'<span class="badge b-blue">設置済</span>'}</td>
+    </tr>`).join('')
+    :'<tr><td colspan="3" style="text-align:center;color:var(--text2);padding:24px">該当データなし</td></tr>';
+}
+
+function bulkAdd(){
+  const off=document.getElementById('ainv-off').value;
+  if(!off){toast('局を選択してください','er');return;}
+  const lines=document.getElementById('ainv-macs').value.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){toast('MACアドレスを入力してください','er');return;}
+  const maxId=S.routers.reduce((m,r)=>Math.max(m,r.id),0);
+  let added=0;
+  lines.forEach((mac,i)=>{
+    if(S.routers.find(r=>r.macAddress===mac)){return;}
+    S.routers.push({id:maxId+i+1,office:off,macAddress:mac,status:'available'});
+    added++;
+  });
+  save();
+  closeModal('modal-addinv');
+  renderInv();
+  renderDash();
+  toast(`${added}台を登録しました`,'ok');
+  document.getElementById('ainv-macs').value='';
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function renderHist(){
+  const grp={};
+  S.installs.forEach(i=>{
+    if(!grp[i.installId])grp[i.installId]=[];
+    grp[i.installId].push(i);
+  });
+  const sorted=Object.entries(grp).sort(([a],[b])=>b-a);
+  const c=document.getElementById('hist-list');
+  if(!sorted.length){c.innerHTML='<div class="card" style="text-align:center;color:var(--text2);padding:32px">設置履歴がありません</div>';return;}
+  c.innerHTML=sorted.map(([id,rows])=>{
+    const r=rows[0];
+    const mm=r.customerOffice!==r.routerOffice;
+    return `<div class="hist-item">
+      <div class="hist-hd" onclick="toggleHist('hb${id}')">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">設置ID: ${id} <span class="t-muted t-sm">— ${r.installDate}</span></div>
+          <div class="t-sm t-muted mt-8">顧客: ${r.customerNo}（${r.customerOffice}局）｜ ルータ局: ${r.routerOffice}局 ｜ ${rows.length}台</div>
+        </div>
+        ${mm?'<span class="badge b-yellow">他局</span>':''}
+        <button class="btn btn-d btn-sm" onclick="cancelInst(${id},event)">取消</button>
+        <span class="t-muted" style="margin-left:6px">▼</span>
+      </div>
+      <div class="hist-bd" id="hb${id}">
+        <div class="t-sm t-muted mb-8">使用MACアドレス</div>
+        <div class="mac-list">${rows.map(r=>`<span class="mac-tag">${r.macAddress}</span>`).join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHist(id){ document.getElementById(id).classList.toggle('open'); }
+
+function cancelInst(id,e){
+  e.stopPropagation();
+  if(!confirm(`設置ID ${id} を取り消しますか？`))return;
+  S.installs.filter(i=>i.installId===id).forEach(i=>{
+    const r=S.routers.find(r=>r.macAddress===i.macAddress);
+    if(r)r.status='available';
+  });
+  S.installs=S.installs.filter(i=>i.installId!==id);
+  save();
+  renderHist();
+  renderDash();
+  toast('設置を取り消しました','in');
+}
+
+// ============================================================
+// FLOW
+// ============================================================
+function renderFlow(){
+  const cut=new Date(); cut.setDate(cut.getDate()-30);
+  const recent=S.installs.filter(i=>new Date(i.installDate)>=cut);
+  const mat={};
+  S.offices.forEach(a=>{mat[a]={};S.offices.forEach(b=>mat[a][b]=0);});
+  recent.forEach(i=>{if(mat[i.routerOffice]&&mat[i.routerOffice][i.customerOffice]!==undefined)mat[i.routerOffice][i.customerOffice]++;});
+  const outD={},inD={};
+  S.offices.forEach(a=>{outD[a]=0;inD[a]=0;});
+  S.offices.forEach(f=>S.offices.forEach(t=>{if(f!==t){outD[f]+=mat[f][t];inD[t]+=mat[f][t];}}));
+  const mo=Math.max(...Object.values(outD),1),mi=Math.max(...Object.values(inD),1);
+  document.getElementById('flow-out').innerHTML='<div class="bar-chart">'+S.offices.map(a=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${a}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${outD[a]/mo*100}%;background:var(--red)"></div></div>
+      <div class="bar-val t-danger">${outD[a]}</div>
+    </div>`).join('')+'</div>';
+  document.getElementById('flow-in').innerHTML='<div class="bar-chart">'+S.offices.map(a=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${a}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${inD[a]/mi*100}%;background:var(--green)"></div></div>
+      <div class="bar-val t-success">${inD[a]}</div>
+    </div>`).join('')+'</div>';
+  document.getElementById('flow-th').innerHTML=`<tr><th>ルータ局↓/設置先→</th>${S.offices.map(o=>`<th>${o}</th>`).join('')}</tr>`;
+  document.getElementById('flow-tb').innerHTML=S.offices.map(f=>`<tr><td style="font-weight:600;color:var(--text2)">${f}</td>${S.offices.map(t=>{const v=mat[f][t];return`<td style="text-align:center;font-weight:700;color:${f===t?'var(--text3)':v>0?'var(--red)':'var(--text)'}">${v}</td>`;}).join('')}</tr>`).join('');
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function renderSettings(){
+  document.getElementById('off-tags').innerHTML=S.offices.map(o=>`
+    <div class="atag">${o}局 <button class="atag-del" onclick="delOff('${o}')">×</button></div>`).join('');
+  const lines=['office,customerNo',...S.customers.map(c=>`${c.office},${c.customerNo}`)];
+  document.getElementById('cust-csv').value=lines.join('\n');
+}
+
+function addOffice(){
+  const v=document.getElementById('new-off').value.trim();
+  if(!v)return;
+  if(S.offices.includes(v)){toast('既に存在します','er');return;}
+  S.offices.push(v); save();
+  document.getElementById('new-off').value='';
+  renderSettings();
+  toast(`${v}局を追加しました`,'ok');
+}
+
+function delOff(name){
+  if(S.offices.length<=1){toast('最低1局必要です','er');return;}
+  if(!confirm(`${name}局を削除しますか？`))return;
+  S.offices=S.offices.filter(o=>o!==name); save();
+  renderSettings();
+}
+
+function importCustCSV(){
+  const raw=document.getElementById('cust-csv').value.trim().split('\n').filter(l=>l.trim());
+  if(raw.length<2){toast('データが不正です','er');return;}
+  const hd=raw[0].split(',');
+  const oi=hd.indexOf('office'),ni=hd.indexOf('customerNo');
+  if(oi<0||ni<0){toast('ヘッダが不正です','er');return;}
+  const custs=raw.slice(1).map(l=>{const p=l.split(',');return{office:p[oi]?.trim(),customerNo:p[ni]?.trim()};}).filter(c=>c.office&&c.customerNo);
+  S.customers=custs; save();
+  toast(`${custs.length}件取り込みました`,'ok');
+}
+
+function doReset(){
+  if(!confirm('全データをリセットします。続行しますか？'))return;
+  localStorage.removeItem('ccn2');
+  location.reload();
+}
+
+// ============================================================
+// BACKUP
+// ============================================================
+function exportBackup(){
+  dl(JSON.stringify(S,null,2),'application/json','backup.json');
+  toast('バックアップを出力しました','ok');
+}
+
+function importBackup(){
+  const f=document.getElementById('bk-file').files[0];
+  if(!f){toast('ファイルを選択してください','er');return;}
+  const rd=new FileReader();
+  rd.onload=e=>{try{S={...S,...JSON.parse(e.target.result)};save();closeModal('modal-backup');renderDash();toast('読み込みました','ok');}catch{toast('ファイルエラー','er');}};
+  rd.readAsText(f);
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportCSV(){
+  const rows=[['設置日','顧客局','顧客番号','ルータ局','MACアドレス','設置ID'],...S.installs.map(i=>[i.installDate,i.customerOffice,i.customerNo,i.routerOffice,i.macAddress,i.installId])];
+  dl('\uFEFF'+rows.map(r=>r.join(',')).join('\n'),'text/csv;charset=utf-8','installs.csv');
+  toast('CSVを出力しました','ok');
+}
+
+function exportExcel(){
+  // Simple HTML table → xls trick (opens in Excel)
+  const rows=[['設置日','顧客局','顧客番号','ルータ局','MACアドレス','設置ID'],...S.installs.map(i=>[i.installDate,i.customerOffice,i.customerNo,i.routerOffice,i.macAddress,i.installId])];
+  const tbl='<table>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')+'</table>';
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>${tbl}</body></html>`;
+  dl(html,'application/vnd.ms-excel','installs.xls');
+  toast('Excelファイルを出力しました','ok');
+}
+
+function dl(content,mime,name){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(id){
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='modal-addinv') fillOffSel('ainv-off');
+}
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg,type='in'){
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  const ic={ok:'✅',er:'❌',in:'ℹ️'};
+  el.innerHTML=`<span>${ic[type]||''}</span><span>${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fillOffSel(id,addAll=false){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const cur=el.value;
+  el.innerHTML=(addAll?'<option value="">全局</option>':'<option value="">-- 選択 --</option>')+S.offices.map(o=>`<option value="${o}">${o}局</option>`).join('');
+  el.value=cur;
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+// ============================================================
+// AUTH
+// ============================================================
+const AUTH_KEY = 'ccn_auth';
+const PASSWORD = 'ccn2026'; // ← パスワードはここを変更
+
+function doAuth(){
+  const pw = document.getElementById('auth-pw').value;
+  if(pw === PASSWORD){
+    sessionStorage.setItem(AUTH_KEY, '1');
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('auth-error').textContent='';
+  } else {
+    document.getElementById('auth-error').textContent='パスワードが違います';
+    document.getElementById('auth-pw').value='';
+    document.getElementById('auth-pw').focus();
+  }
+}
+
+function checkAuth(){
+  if(sessionStorage.getItem(AUTH_KEY) === '1'){
+    document.getElementById('auth-screen').style.display='none';
+  }
+}
+
+load();
+checkAuth();
+initWiz();
+</script>
+</body>
+</html>
