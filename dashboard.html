@@ -151,7 +151,7 @@
       <div class="sub">台</div>
     </div>
     <div class="summary-card">
-      <div class="label">修理完了（未引渡し）</div>
+      <div class="label">完了（未返却）</div>
       <div class="value" id="pc-count-done">0</div>
       <div class="sub">台</div>
     </div>
@@ -161,20 +161,22 @@
       <div class="sub">台</div>
     </div>
     <div class="summary-card">
-      <div class="label">引渡し期限超過</div>
+      <div class="label">期限超過</div>
       <div class="value" id="pc-count-overdue" style="color:var(--danger)">0</div>
       <div class="sub">台</div>
     </div>
   </div>
   <div class="toolbar">
     <button class="btn btn-primary" onclick="openPcModal()">＋ 新規登録</button>
+    <button class="btn btn-outline" onclick="window.open('https://script.google.com/macros/s/AKfycbz-kb6XqYe6eBI6jg57fbV0rIWSvVtxBIxrvGL--SGcBii-lQfjtwqZSModtvLX2SwbKA/exec','_blank')" style="display:inline-flex;align-items:center;gap:6px;">💻 詳細管理アプリを開く ↗</button>
     <input class="search-box" type="text" id="pc-search" placeholder="🔍 氏名・機種で検索" oninput="renderPcTable()">
     <select id="pc-filter" onchange="renderPcTable()" style="padding:7px 10px;border-radius:7px;border:1px solid var(--border);font-size:13px;">
       <option value="">すべて</option>
-      <option value="受付中">受付中</option>
+      <option value="受付">受付</option>
+      <option value="診断中">診断中</option>
       <option value="修理中">修理中</option>
-      <option value="修理完了">修理完了</option>
-      <option value="引渡済">引渡済</option>
+      <option value="完了">完了</option>
+      <option value="返却済">返却済</option>
     </select>
   </div>
   <div class="table-wrap">
@@ -219,24 +221,36 @@
 <!-- ===== 電話応対 ===== -->
 <div id="tab-phone" class="content">
   <div class="toolbar">
-    <button class="btn btn-primary" onclick="openPhoneModal()">＋ 記録を追加</button>
-    <input class="search-box" type="text" id="phone-search" placeholder="🔍 内容で検索" oninput="renderPhoneTable()">
+    <button class="btn btn-ghost" onclick="fetchPhoneData()">🔄 最新データを取得</button>
+    <input class="search-box" type="text" id="phone-search" placeholder="🔍 お客様名・内容で検索" oninput="renderPhoneTable()">
+    <select id="phone-filter" onchange="renderPhoneTable()" style="padding:7px 10px;border-radius:7px;border:1px solid var(--border);font-size:13px;">
+      <option value="">すべて</option>
+      <option value="未対応">未対応</option>
+      <option value="対応済">対応済</option>
+      <option value="完了">完了</option>
+    </select>
   </div>
+  <div id="phone-loading" style="display:none;padding:24px;text-align:center;color:var(--text-sub);">読み込み中...</div>
+  <div id="phone-error" style="display:none;padding:16px;background:var(--danger-light);color:var(--danger);border-radius:var(--radius);margin-bottom:12px;font-size:13px;"></div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th>案件ID</th>
           <th>日付</th>
-          <th>時間</th>
           <th>お客様名</th>
-          <th>内容</th>
-          <th>対応者</th>
+          <th>案件種別</th>
+          <th>内容メモ</th>
+          <th>次回アクション</th>
+          <th>期限日</th>
+          <th>状態</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody id="phone-table-body"></tbody>
     </table>
   </div>
+  <div style="margin-top:10px;font-size:11px;color:var(--text-light);">※ データはGoogleスプレッドシートから取得しています。新しい記録はGoogleフォームから入力してください。</div>
 </div>
 
 <!-- ===== 未処理案件 ===== -->
@@ -315,10 +329,12 @@
       <div class="form-row">
         <label>状態</label>
         <select id="pc-status">
-          <option>受付中</option>
+          <option>受付</option>
+          <option>診断中</option>
           <option>修理中</option>
-          <option>修理完了</option>
-          <option>引渡済</option>
+          <option>完了</option>
+          <option>返却済</option>
+          <option>キャンセル</option>
         </select>
       </div>
       <div class="form-row">
@@ -329,44 +345,6 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('pc-modal')">キャンセル</button>
       <button class="btn btn-primary" onclick="savePc()">保存</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== モーダル: 電話応対 ===== -->
-<div class="modal-overlay" id="phone-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="phone-modal-title">電話応対 記録</h2>
-      <button class="modal-close" onclick="closeModal('phone-modal')">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-row">
-          <label>日付 *</label>
-          <input type="date" id="phone-date">
-        </div>
-        <div class="form-row">
-          <label>時間</label>
-          <input type="time" id="phone-time">
-        </div>
-      </div>
-      <div class="form-row">
-        <label>お客様名</label>
-        <input type="text" id="phone-name" placeholder="例：佐藤 花子">
-      </div>
-      <div class="form-row">
-        <label>応対内容 *</label>
-        <textarea id="phone-content" placeholder="問い合わせ内容・対応内容など"></textarea>
-      </div>
-      <div class="form-row">
-        <label>対応者</label>
-        <input type="text" id="phone-staff" placeholder="例：むつみ">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('phone-modal')">キャンセル</button>
-      <button class="btn btn-primary" onclick="savePhone()">保存</button>
     </div>
   </div>
 </div>
@@ -449,6 +427,8 @@ function switchTab(name) {
   event.target.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'router') renderRouterSummary();
+  if (name === 'phone') fetchPhoneData();
+  if (name === 'pc') fetchPcData();
 }
 
 // ===== モーダル =====
@@ -462,69 +442,106 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
 
-// ===== 預かりPC =====
+// ===== 預かりPC（スプレッドシート連携） =====
+const PC_GAS_URL = "https://script.google.com/macros/s/AKfycbz-kb6XqYe6eBI6jg57fbV0rIWSvVtxBIxrvGL--SGcBii-lQfjtwqZSModtvLX2SwbKA/exec";
+const PC_TOKEN = "shop2026-mutsumi";
+let pcRecords = [];
+
+async function fetchPcData() {
+  try {
+    const res = await fetch(`${PC_GAS_URL}?token=${PC_TOKEN}&action=getAll`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    pcRecords = data.records || [];
+    fetchPcData();
+  } catch(e) {
+    console.error("PC data fetch error:", e);
+  }
+}
+
 function openPcModal(id = null) {
   editingId.pc = id;
-  const pcs = load('pcs');
-  const pc = id ? pcs.find(p => p.id === id) : null;
+  const pc = id ? pcRecords.find(p => p["受付ID"] === id) : null;
   document.getElementById('pc-modal-title').textContent = id ? '預かりPC 編集' : '預かりPC 新規登録';
-  document.getElementById('pc-date').value = pc ? pc.date : today();
-  document.getElementById('pc-due').value = pc ? pc.due : '';
-  document.getElementById('pc-name').value = pc ? pc.name : '';
-  document.getElementById('pc-model').value = pc ? pc.model : '';
-  document.getElementById('pc-status').value = pc ? pc.status : '受付中';
-  document.getElementById('pc-memo').value = pc ? pc.memo : '';
+  document.getElementById('pc-date').value = pc ? toInputDate(pc["受付日"]) : today();
+  document.getElementById('pc-due').value = pc ? toInputDate(pc["引渡予定日"]) : '';
+  document.getElementById('pc-name').value = pc ? pc["お客様名"] : '';
+  document.getElementById('pc-model').value = pc ? pc["機種"] : '';
+  document.getElementById('pc-status').value = pc ? pc["ステータス"] : '受付';
+  document.getElementById('pc-memo').value = pc ? pc["症状"] : '';
   openModal('pc-modal');
 }
 
-function savePc() {
+function toInputDate(val) {
+  if (!val) return '';
+  return String(val).replace(/\//g, '-');
+}
+
+async function savePc() {
   const name = document.getElementById('pc-name').value.trim();
   const model = document.getElementById('pc-model').value.trim();
   if (!name || !model) { alert('お客様名と機種は必須です'); return; }
-  const pcs = load('pcs');
-  const item = {
-    id: editingId.pc || uid(),
-    date: document.getElementById('pc-date').value,
-    due: document.getElementById('pc-due').value,
-    name, model,
+
+  const data = {
+    customerName: name,
+    model: model,
     status: document.getElementById('pc-status').value,
-    memo: document.getElementById('pc-memo').value.trim(),
+    symptom: document.getElementById('pc-memo').value.trim(),
+    scheduledDate: document.getElementById('pc-due').value.replace(/-/g, '/'),
   };
-  if (editingId.pc) {
-    const idx = pcs.findIndex(p => p.id === editingId.pc);
-    pcs[idx] = item;
-  } else {
-    pcs.unshift(item);
+
+  try {
+    let url;
+    if (editingId.pc) {
+      url = `${PC_GAS_URL}?token=${PC_TOKEN}&action=update&id=${encodeURIComponent(editingId.pc)}&data=${encodeURIComponent(JSON.stringify(data))}`;
+    } else {
+      url = `${PC_GAS_URL}?token=${PC_TOKEN}&action=add&data=${encodeURIComponent(JSON.stringify(data))}`;
+    }
+    const res = await fetch(url);
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    closeModal('pc-modal');
+    await fetchPcData();
+  } catch(e) {
+    alert('保存に失敗しました: ' + e.message);
   }
-  save('pcs', pcs);
-  closeModal('pc-modal');
-  renderPcTable();
 }
 
-function deletePc(id) {
+async function deletePc(id) {
   if (!confirm('この記録を削除しますか？')) return;
-  save('pcs', load('pcs').filter(p => p.id !== id));
-  renderPcTable();
+  try {
+    const url = `${PC_GAS_URL}?token=${PC_TOKEN}&action=delete&id=${encodeURIComponent(id)}`;
+    const res = await fetch(url);
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    await fetchPcData();
+  } catch(e) {
+    alert('削除に失敗しました: ' + e.message);
+  }
 }
 
 function renderPcTable() {
-  const pcs = load('pcs');
   const search = document.getElementById('pc-search').value.toLowerCase();
   const filter = document.getElementById('pc-filter').value;
   const todayStr = today();
   let active = 0, done = 0, todayCount = 0, overdue = 0;
 
-  const filtered = pcs.filter(p => {
-    if (filter && p.status !== filter) return false;
-    if (search && !p.name.toLowerCase().includes(search) && !p.model.toLowerCase().includes(search)) return false;
+  const filtered = pcRecords.filter(p => {
+    if (filter && p["ステータス"] !== filter) return false;
+    const name = String(p["お客様名"]||'').toLowerCase();
+    const model = String(p["機種"]||'').toLowerCase();
+    if (search && !name.includes(search) && !model.includes(search)) return false;
     return true;
   });
 
-  pcs.forEach(p => {
-    if (p.status !== '引渡済') active++;
-    if (p.status === '修理完了') done++;
-    if (p.date === todayStr) todayCount++;
-    if (p.due && p.due < todayStr && p.status !== '引渡済') overdue++;
+  pcRecords.forEach(p => {
+    const st = p["ステータス"];
+    if (!['返却済','キャンセル'].includes(st)) active++;
+    if (st === '完了') done++;
+    const recDate = toInputDate(p["受付日"]);
+    if (recDate === todayStr) todayCount++;
+    const due = toInputDate(p["引渡予定日"]);
+    if (due && due < todayStr && !['返却済','キャンセル'].includes(st)) overdue++;
   });
 
   document.getElementById('pc-count-active').textContent = active;
@@ -533,7 +550,7 @@ function renderPcTable() {
   document.getElementById('pc-count-overdue').textContent = overdue;
 
   const statusBadge = s => {
-    const map = { '受付中': 'blue', '修理中': 'yellow', '修理完了': 'green', '引渡済': 'gray' };
+    const map = { '受付': 'blue', '診断中': 'yellow', '修理中': 'yellow', '完了': 'green', '返却済': 'gray', 'キャンセル': 'gray' };
     return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
   };
 
@@ -543,17 +560,19 @@ function renderPcTable() {
     return;
   }
   tbody.innerHTML = filtered.map(p => {
-    const overdueCls = p.due && p.due < todayStr && p.status !== '引渡済' ? 'style="color:var(--danger);font-weight:600"' : '';
+    const due = toInputDate(p["引渡予定日"]);
+    const overdueCls = due && due < todayStr && !['返却済','キャンセル'].includes(p["ステータス"]) ? 'style="color:var(--danger);font-weight:600"' : '';
+    const id = p["受付ID"];
     return `<tr>
-      <td>${fmt(p.date)}</td>
-      <td>${p.name}</td>
-      <td>${p.model}</td>
-      <td>${statusBadge(p.status)}</td>
-      <td ${overdueCls}>${fmt(p.due)}</td>
-      <td style="max-width:160px;white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--text-sub)">${p.memo||'―'}</td>
+      <td>${fmt(toInputDate(p["受付日"]))}</td>
+      <td>${p["お客様名"]||''}</td>
+      <td>${p["機種"]||''}</td>
+      <td>${statusBadge(p["ステータス"])}</td>
+      <td ${overdueCls}>${fmt(due)}</td>
+      <td style="max-width:160px;white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--text-sub)">${p["症状"]||'―'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="openPcModal('${p.id}')">編集</button>
-        <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deletePc('${p.id}')">削除</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPcModal('${id}')">編集</button>
+        <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deletePc('${id}')">削除</button>
       </td>
     </tr>`;
   }).join('');
@@ -568,7 +587,7 @@ function openCcnApp() {
 }
 
 function renderRouterSummary() {
-  const raw = localStorage.getItem('ccn_state');
+  const raw = localStorage.getItem('ccn2');
   const cards = document.getElementById('router-summary-cards');
   const noData = document.getElementById('router-no-data');
 
@@ -634,71 +653,140 @@ function renderRouterSummary() {
   }).join('');
 }
 
-// ===== 電話応対 =====
-function openPhoneModal(id = null) {
-  editingId.phone = id;
-  const phones = load('phones');
-  const p = id ? phones.find(x => x.id === id) : null;
-  document.getElementById('phone-modal-title').textContent = id ? '電話応対 編集' : '電話応対 記録';
-  document.getElementById('phone-date').value = p ? p.date : today();
-  document.getElementById('phone-time').value = p ? p.time : nowTime();
-  document.getElementById('phone-name').value = p ? p.name : '';
-  document.getElementById('phone-content').value = p ? p.content : '';
-  document.getElementById('phone-staff').value = p ? p.staff : '';
-  openModal('phone-modal');
-}
+// ===== 電話応対（GAS API連携） =====
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzkd-jyXPOXTyNfqU8a7tkYYk-hotkax5PcecEbwcLpT18RUc3J_JAYqbZa-nWzwlNbjg/exec';
+const API_TOKEN = 'shop2026-mutsumi'; // ← GAS側と同じ文字列にする
 
-function savePhone() {
-  const content = document.getElementById('phone-content').value.trim();
-  if (!content) { alert('応対内容を入力してください'); return; }
-  const phones = load('phones');
-  const item = {
-    id: editingId.phone || uid(),
-    date: document.getElementById('phone-date').value,
-    time: document.getElementById('phone-time').value,
-    name: document.getElementById('phone-name').value.trim(),
-    content,
-    staff: document.getElementById('phone-staff').value.trim(),
-  };
-  if (editingId.phone) {
-    const idx = phones.findIndex(p => p.id === editingId.phone);
-    phones[idx] = item;
-  } else {
-    phones.unshift(item);
+let phoneData = []; // 取得したデータをキャッシュ
+
+async function fetchPhoneData() {
+  const loading = document.getElementById('phone-loading');
+  const errEl = document.getElementById('phone-error');
+  loading.style.display = 'block';
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(GAS_URL + '?action=list&token=' + API_TOKEN);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '取得失敗');
+    phoneData = json.data;
+    renderPhoneTable();
+    syncPhoneToCase();
+  } catch(e) {
+    errEl.textContent = 'データの取得に失敗しました：' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    loading.style.display = 'none';
   }
-  save('phones', phones);
-  closeModal('phone-modal');
-  renderPhoneTable();
-}
-
-function deletePhone(id) {
-  if (!confirm('この記録を削除しますか？')) return;
-  save('phones', load('phones').filter(p => p.id !== id));
-  renderPhoneTable();
 }
 
 function renderPhoneTable() {
-  const phones = load('phones');
   const search = document.getElementById('phone-search').value.toLowerCase();
+  const filter = document.getElementById('phone-filter').value;
 
-  const filtered = phones.filter(p => !search || p.content.toLowerCase().includes(search) || p.name.toLowerCase().includes(search));
+  const filtered = phoneData.filter(p => {
+    if (filter && p.status !== filter) return false;
+    if (search && !(p.name||'').toLowerCase().includes(search) && !(p.memo||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const statusBadge = s => {
+    const map = { '未対応': 'badge-red', '対応済': 'badge-yellow', '完了': 'badge-green' };
+    return `<span class="badge ${map[s]||'badge-gray'}">${s||'―'}</span>`;
+  };
 
   const tbody = document.getElementById('phone-table-body');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">データがありません</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">データがありません</td></tr>';
     return;
   }
+
   tbody.innerHTML = filtered.map(p => `<tr>
-    <td>${fmt(p.date)}</td>
-    <td>${p.time || '―'}</td>
+    <td style="font-size:12px;font-family:monospace;">${p.id}</td>
+    <td>${fmt(p.timestamp)}</td>
     <td>${p.name || '―'}</td>
-    <td style="max-width:200px;white-space:pre-wrap;word-break:break-all;">${p.content}</td>
-    <td>${p.staff || '―'}</td>
-    <td style="white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" onclick="openPhoneModal('${p.id}')">編集</button>
-      <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deletePhone('${p.id}')">削除</button>
+    <td>${p.category || '―'}</td>
+    <td style="max-width:180px;white-space:pre-wrap;word-break:break-all;">${p.memo || '―'}</td>
+    <td>${p.nextAction || '―'}</td>
+    <td>${fmt(p.actionDate)}</td>
+    <td>${statusBadge(p.status)}</td>
+    <td style="white-space:nowrap;">
+      <select onchange="updatePhoneStatus('${p.id}', this.value)" style="padding:4px 6px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--surface);">
+        <option value="">変更...</option>
+        <option value="未対応">未対応</option>
+        <option value="対応済">対応済</option>
+        <option value="完了">完了</option>
+      </select>
     </td>
   </tr>`).join('');
+}
+
+async function updatePhoneStatus(id, newStatus) {
+  if (!newStatus) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStatus', id, status: newStatus, token: API_TOKEN }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '更新失敗');
+
+    // ローカルキャッシュも更新
+    const rec = phoneData.find(p => p.id === id);
+    if (rec) rec.status = newStatus;
+    renderPhoneTable();
+
+    // 完了になったとき → 未処理案件側も連動
+    if (newStatus === '完了' || newStatus === '対応済') {
+      syncCaseFromPhone(id, newStatus);
+    }
+    // 未対応になったとき → 未処理案件に自動登録
+    if (newStatus === '未対応') {
+      syncPhoneToCase();
+    }
+  } catch(e) {
+    alert('ステータスの更新に失敗しました：' + e.message);
+  }
+}
+
+// 電話の未対応 → 未処理案件へ自動反映
+function syncPhoneToCase() {
+  const cases = load('cases');
+  let updated = false;
+
+  phoneData.filter(p => p.status === '未対応').forEach(p => {
+    const alreadyLinked = cases.find(c => c.phoneId === p.id);
+    if (!alreadyLinked) {
+      const nameStr = p.name ? `${p.name} - ` : '';
+      cases.unshift({
+        id: uid(),
+        phoneId: p.id,
+        date: p.timestamp,
+        due: p.actionDate || '',
+        priority: '中',
+        content: `【電話】${nameStr}${p.memo}`,
+        status: '未処理',
+        memo: p.nextAction ? `次回アクション：${p.nextAction}` : '',
+      });
+      updated = true;
+    }
+  });
+
+  if (updated) {
+    save('cases', cases);
+    renderCaseTable();
+  }
+}
+
+// 未処理案件の完了 → 電話のステータスも更新
+function syncCaseFromPhone(phoneId, newStatus) {
+  const cases = load('cases');
+  const linked = cases.find(c => c.phoneId === phoneId);
+  if (linked) {
+    linked.status = newStatus === '完了' ? '完了' : '対応中';
+    save('cases', cases);
+    renderCaseTable();
+  }
 }
 
 // ===== 未処理案件 =====
@@ -801,9 +889,8 @@ function renderCaseTable() {
 }
 
 // ===== 初期描画 =====
-renderPcTable();
+fetchPcData();
 renderRouterSummary();
-renderPhoneTable();
 renderCaseTable();
 </script>
 </body>
