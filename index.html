@@ -244,29 +244,9 @@ code{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padd
   .s1-name{font-size:15px;}
   .s1-v{font-size:17px;}
 }
-/* Auth */
-.auth-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;}
-.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px;text-align:center;}
-.auth-logo{font-size:22px;font-weight:700;color:var(--accent);margin-bottom:4px;}
-.auth-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
-.auth-error{color:var(--red);font-size:13px;margin-top:10px;min-height:18px;}
 </style>
 </head>
 <body>
-
-<!-- Auth Screen -->
-<div id="auth-screen" class="auth-screen">
-  <div class="auth-box">
-    <div class="auth-logo">CCN</div>
-    <div class="auth-sub">ルータ在庫管理システム</div>
-    <div class="fg">
-      <label class="fl" style="text-align:left">パスワード</label>
-      <input class="fc" type="password" id="auth-pw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doAuth()">
-    </div>
-    <button class="btn btn-p btn-lg" onclick="doAuth()">ログイン</button>
-    <div class="auth-error" id="auth-error"></div>
-  </div>
-</div>
 <div id="app">
   <!-- Topbar -->
   <header class="topbar">
@@ -291,10 +271,7 @@ code{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padd
     <div id="p-dashboard" class="hidden">
       <div class="flex items-c jc-sb mb-16">
         <h1 class="sec-title" style="margin-bottom:0">ダッシュボード</h1>
-        <div class="flex gap-8 items-c">
-          <span class="t-sm t-muted" id="dash-updated"></span>
-          <button class="btn btn-s btn-sm" onclick="syncFromGAS()">🔄 同期</button>
-        </div>
+        <span class="t-sm t-muted" id="dash-updated"></span>
       </div>
       <div class="g3" id="dash-cards"></div>
     </div>
@@ -777,57 +754,6 @@ const GAS_URL='https://script.google.com/macros/s/AKfycbzE629-uX8k6zE4BVPr-UCgW8
 // 当日分顧客番号キャッシュ（局ごと、日付付き）
 let todayCache = { date:'', data:[] };
 
-// ============================================================
-// GAS SYNC
-// ============================================================
-async function syncFromGAS(){
-  try{
-    const res=await fetch(GAS_URL+'?action=routers',{mode:'cors'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const json=await res.json();
-    if(json.routers&&json.routers.length>0){
-      S.routers=json.routers;
-    }
-    if(json.installs){
-      S.installs=json.installs.map(i=>({
-        ...i,
-        installDate:i.installDate?String(i.installDate).slice(0,10):'',
-        installId:Number(i.installId),
-        customerNo:String(i.customerNo),
-      }));
-      if(S.installs.length>0){
-        S.nextId=Math.max(...S.installs.map(i=>i.installId))+1;
-      }
-    }
-    save();
-    renderDash();
-    renderS1Cards();
-    toast('データを同期しました','ok');
-  }catch(e){
-    toast('オフライン：localStorageのデータを使用中','in');
-  }
-}
-
-async function postInstallToGAS(rows){
-  try{
-    await fetch(GAS_URL,{
-      method:'POST',mode:'cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'install',rows})
-    });
-  }catch(e){ console.warn('GAS postInstall failed:',e); }
-}
-
-async function cancelInstallToGAS(installId){
-  try{
-    await fetch(GAS_URL,{
-      method:'POST',mode:'cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'cancel',installId})
-    });
-  }catch(e){ console.warn('GAS cancelInstall failed:',e); }
-}
-
 async function fillCustList(){
   const statusEl=document.getElementById('gas-status');
   const infoEl=document.getElementById('gas-info');
@@ -960,16 +886,12 @@ function renderConfirm(){
 function doInstall(){
   const today=new Date().toISOString().slice(0,10);
   const iid=S.nextId++;
-  const rows=[];
   W.macs.forEach(mac=>{
-    const row={installId:iid,installDate:today,customerOffice:W.cOff,customerNo:W.cNo,routerOffice:W.rOff,macAddress:mac};
-    S.installs.push(row);
-    rows.push(row);
+    S.installs.push({installId:iid,installDate:today,customerOffice:W.cOff,customerNo:W.cNo,routerOffice:W.rOff,macAddress:mac});
     const r=S.routers.find(r=>r.macAddress===mac);
     if(r)r.status='installed';
   });
   save();
-  postInstallToGAS(rows);
   document.getElementById('w-done-txt').textContent=`設置ID: ${iid} ／ ${W.macs.length}台を登録しました`;
   gotoPanel(6);
   toast('設置登録しました','ok');
@@ -1061,7 +983,6 @@ function cancelInst(id,e){
   });
   S.installs=S.installs.filter(i=>i.installId!==id);
   save();
-  cancelInstallToGAS(id);
   renderHist();
   renderDash();
   toast('設置を取り消しました','in');
@@ -1218,35 +1139,7 @@ function fillOffSel(id,addAll=false){
 // ============================================================
 // BOOT
 // ============================================================
-// ============================================================
-// AUTH
-// ============================================================
-const AUTH_KEY = 'ccn_auth';
-const PASSWORD = 'ccn2026'; // ← パスワードはここを変更
-
-function doAuth(){
-  const pw = document.getElementById('auth-pw').value;
-  if(pw === PASSWORD){
-    sessionStorage.setItem(AUTH_KEY, '1');
-    document.getElementById('auth-screen').style.display='none';
-    document.getElementById('auth-error').textContent='';
-    syncFromGAS();
-  } else {
-    document.getElementById('auth-error').textContent='パスワードが違います';
-    document.getElementById('auth-pw').value='';
-    document.getElementById('auth-pw').focus();
-  }
-}
-
-function checkAuth(){
-  if(sessionStorage.getItem(AUTH_KEY) === '1'){
-    document.getElementById('auth-screen').style.display='none';
-    syncFromGAS();
-  }
-}
-
 load();
-checkAuth();
 initWiz();
 </script>
 </body>
