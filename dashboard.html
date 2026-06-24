@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>店内業務ダッシュボード</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f8f9fb;
+    --border: #e2e6ea;
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --text: #1e293b;
+    --text-sub: #64748b;
+    --text-light: #94a3b8;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Hiragino Sans', 'Meiryo', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ヘッダー */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); }
+  header h1 { font-size: 16px; font-weight: 700; color: var(--primary); letter-spacing: 0.02em; }
+  #clock { font-size: 13px; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+
+  /* タブ */
+  .tabs { display: flex; gap: 4px; padding: 12px 16px 0; border-bottom: 2px solid var(--border); background: var(--surface); }
+  .tab { padding: 8px 16px; border-radius: 8px 8px 0 0; border: none; background: none; cursor: pointer; font-size: 13px; color: var(--text-sub); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-light); }
+  .tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+  /* コンテンツ */
+  .content { padding: 16px; display: none; }
+  .content.active { display: block; }
+
+  /* サマリーカード */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .summary-card { background: var(--surface); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
+  .summary-card .label { font-size: 11px; color: var(--text-sub); margin-bottom: 4px; }
+  .summary-card .value { font-size: 26px; font-weight: 700; color: var(--primary); }
+  .summary-card .sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+  /* ツールバー */
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .btn { padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface2); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  input[type=text], input[type=date], input[type=time], textarea, select {
+    border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; font-size: 13px; color: var(--text); background: var(--surface); font-family: inherit; outline: none; transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  textarea { resize: vertical; min-height: 60px; }
+  .search-box { padding: 7px 12px; border-radius: 7px; border: 1px solid var(--border); font-size: 13px; min-width: 180px; }
+
+  /* テーブル */
+  .table-wrap { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--surface2); font-size: 12px; font-weight: 600; color: var(--text-sub); padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .empty-row td { text-align: center; color: var(--text-light); padding: 32px; }
+
+  /* バッジ */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-blue { background: var(--primary-light); color: var(--primary); }
+  .badge-green { background: var(--success-light); color: var(--success); }
+  .badge-red { background: var(--danger-light); color: var(--danger); }
+  .badge-yellow { background: var(--warning-light); color: var(--warning); }
+  .badge-gray { background: #f1f5f9; color: var(--text-sub); }
+
+  /* モーダル */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .modal-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h2 { font-size: 15px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-sub); line-height: 1; padding: 4px; border-radius: 6px; }
+  .modal-close:hover { background: var(--surface2); }
+  .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .modal-footer { padding: 12px 20px 16px; display: flex; gap: 8px; justify-content: flex-end; }
+  .form-row { display: flex; flex-direction: column; gap: 4px; }
+  .form-row label { font-size: 12px; font-weight: 600; color: var(--text-sub); }
+  .form-row input, .form-row textarea, .form-row select { width: 100%; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* 在庫カード */
+  .stock-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .stock-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; }
+  .stock-card h3 { font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .stock-number { font-size: 36px; font-weight: 700; margin-bottom: 4px; }
+  .stock-number.ok { color: var(--success); }
+  .stock-number.low { color: var(--warning); }
+  .stock-number.zero { color: var(--danger); }
+  .stock-detail { font-size: 12px; color: var(--text-sub); }
+  .stock-edit { margin-top: 10px; display: flex; gap: 6px; align-items: center; }
+  .stock-edit input[type=number] { width: 70px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+  .counter-btns { display: flex; gap: 4px; }
+  .counter-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .counter-btn:hover { background: var(--surface2); }
+
+  /* セクションタイトル */
+  .section-title { font-size: 13px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .section-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: var(--primary); border-radius: 2px; }
+
+  /* 未処理案件の優先度 */
+  .priority-high { color: var(--danger); font-weight: 700; }
+  .priority-mid { color: var(--warning); font-weight: 600; }
+  .priority-low { color: var(--text-sub); }
+
+  /* スクロールバー */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖥️ 店内業務ダッシュボード</h1>
+  <span id="clock"></span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('cases')">📋 未処理案件</button>
+  <button class="tab" onclick="switchTab('phone')">📞 電話応対</button>
+  <button class="tab" onclick="switchTab('pc')">💻 預かりPC</button>
+  <button class="tab" onclick="switchTab('router')">📡 ルーター在庫</button>
+</div>
+
+<!-- ===== 預かりPC ===== -->
+<div id="tab-pc" class="content">
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">預かり中</div>
+      <div class="value" id="pc-count-active">0</div>
+      <div class="sub">台</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">修理完了（未引渡し）</div>
+      <div class="value" id="pc-count-done">0</div>
+      <div class="sub">台</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">本日受付</div>
+      <div class="value" id="pc-count-today">0</div>
+      <div class="sub">台</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">引渡し期限超過</div>
+      <div class="value" id="pc-count-overdue" style="color:var(--danger)">0</div>
+      <div class="sub">台</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openPcModal()">＋ 新規登録</button>
+    <input class="search-box" type="text" id="pc-search" placeholder="🔍 氏名・機種で検索" oninput="renderPcTable()">
+    <select id="pc-filter" onchange="renderPcTable()" style="padding:7px 10px;border-radius:7px;border:1px solid var(--border);font-size:13px;">
+      <option value="">すべて</option>
+      <option value="受付中">受付中</option>
+      <option value="修理中">修理中</option>
+      <option value="修理完了">修理完了</option>
+      <option value="引渡済">引渡済</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>受付日</th>
+          <th>お客様名</th>
+          <th>機種</th>
+          <th>状態</th>
+          <th>引渡予定日</th>
+          <th>メモ</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="pc-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ルーター在庫 ===== -->
+<div id="tab-router" class="content">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div class="section-title" style="margin:0;">📡 ルーター在庫サマリー</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-ghost" style="font-size:12px;" onclick="renderRouterSummary()">🔄 更新</button>
+      <button class="btn btn-primary" onclick="openCcnApp()" style="font-size:13px;">詳細管理アプリを開く →</button>
+    </div>
+  </div>
+  <div id="router-summary-cards" class="stock-grid"></div>
+  <div id="router-no-data" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;text-align:center;color:var(--text-light);">
+    <div style="font-size:32px;margin-bottom:8px;">📭</div>
+    <div style="font-size:14px;margin-bottom:4px;">CCNルーター管理アプリのデータが見つかりません</div>
+    <div style="font-size:12px;margin-bottom:16px;">同じブラウザでCCNアプリを一度開くとデータが表示されます</div>
+    <button class="btn btn-primary" onclick="openCcnApp()">CCNルーター管理アプリを開く →</button>
+  </div>
+  <div style="margin-top:16px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-sub);">
+    💡 在庫の追加・設置登録・履歴確認は詳細管理アプリで行います。このビューは読み取り専用です。
+  </div>
+</div>
+
+<!-- ===== 電話応対 ===== -->
+<div id="tab-phone" class="content">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openPhoneModal()">＋ 記録を追加</button>
+    <input class="search-box" type="text" id="phone-search" placeholder="🔍 内容で検索" oninput="renderPhoneTable()">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>時間</th>
+          <th>お客様名</th>
+          <th>内容</th>
+          <th>対応者</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="phone-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 未処理案件 ===== -->
+<div id="tab-cases" class="content active">
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">未処理（合計）</div>
+      <div class="value" id="case-count-open">0</div>
+      <div class="sub">件</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">高優先度</div>
+      <div class="value" id="case-count-high" style="color:var(--danger)">0</div>
+      <div class="sub">件</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">本日期限</div>
+      <div class="value" id="case-count-due" style="color:var(--warning)">0</div>
+      <div class="sub">件</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openCaseModal()">＋ 案件を追加</button>
+    <input class="search-box" type="text" id="case-search" placeholder="🔍 内容で検索" oninput="renderCaseTable()">
+    <select id="case-filter" onchange="renderCaseTable()" style="padding:7px 10px;border-radius:7px;border:1px solid var(--border);font-size:13px;">
+      <option value="">すべて</option>
+      <option value="未処理">未処理</option>
+      <option value="対応中">対応中</option>
+      <option value="完了">完了</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>登録日</th>
+          <th>優先度</th>
+          <th>案件内容</th>
+          <th>期限</th>
+          <th>状態</th>
+          <th>メモ</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="case-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== モーダル: 預かりPC ===== -->
+<div class="modal-overlay" id="pc-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="pc-modal-title">預かりPC 新規登録</h2>
+      <button class="modal-close" onclick="closeModal('pc-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>受付日 *</label>
+          <input type="date" id="pc-date">
+        </div>
+        <div class="form-row">
+          <label>引渡予定日</label>
+          <input type="date" id="pc-due">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>お客様名 *</label>
+        <input type="text" id="pc-name" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-row">
+        <label>機種 *</label>
+        <input type="text" id="pc-model" placeholder="例：NEC LAVIE PC-NS350NAW">
+      </div>
+      <div class="form-row">
+        <label>状態</label>
+        <select id="pc-status">
+          <option>受付中</option>
+          <option>修理中</option>
+          <option>修理完了</option>
+          <option>引渡済</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>メモ・備考</label>
+        <textarea id="pc-memo" placeholder="症状・作業内容・連絡事項など"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pc-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePc()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル: 電話応対 ===== -->
+<div class="modal-overlay" id="phone-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="phone-modal-title">電話応対 記録</h2>
+      <button class="modal-close" onclick="closeModal('phone-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>日付 *</label>
+          <input type="date" id="phone-date">
+        </div>
+        <div class="form-row">
+          <label>時間</label>
+          <input type="time" id="phone-time">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>お客様名</label>
+        <input type="text" id="phone-name" placeholder="例：佐藤 花子">
+      </div>
+      <div class="form-row">
+        <label>応対内容 *</label>
+        <textarea id="phone-content" placeholder="問い合わせ内容・対応内容など"></textarea>
+      </div>
+      <div class="form-row">
+        <label>対応者</label>
+        <input type="text" id="phone-staff" placeholder="例：むつみ">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('phone-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="savePhone()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル: 未処理案件 ===== -->
+<div class="modal-overlay" id="case-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="case-modal-title">未処理案件 登録</h2>
+      <button class="modal-close" onclick="closeModal('case-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>登録日 *</label>
+          <input type="date" id="case-date">
+        </div>
+        <div class="form-row">
+          <label>期限日</label>
+          <input type="date" id="case-due">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>優先度</label>
+        <select id="case-priority">
+          <option value="高">高</option>
+          <option value="中" selected>中</option>
+          <option value="低">低</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>案件内容 *</label>
+        <textarea id="case-content" placeholder="対応が必要な内容を記入"></textarea>
+      </div>
+      <div class="form-row">
+        <label>状態</label>
+        <select id="case-status">
+          <option>未処理</option>
+          <option>対応中</option>
+          <option>完了</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="case-memo" placeholder="詳細・備考など"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('case-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveCase()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== ユーティリティ =====
+const today = () => new Date().toISOString().slice(0, 10);
+const nowTime = () => new Date().toTimeString().slice(0, 5);
+const fmt = d => d ? d.replace(/-/g, '/') : '―';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// ===== LocalStorage =====
+const load = key => JSON.parse(localStorage.getItem(key) || '[]');
+const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+
+// ===== 時計 =====
+const updateClock = () => {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', weekday:'short' }) +
+    ' ' + now.toTimeString().slice(0,8);
+};
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== タブ切り替え =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'router') renderRouterSummary();
+}
+
+// ===== モーダル =====
+let editingId = { pc: null, phone: null, case: null };
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// オーバーレイクリックで閉じる
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ===== 預かりPC =====
+function openPcModal(id = null) {
+  editingId.pc = id;
+  const pcs = load('pcs');
+  const pc = id ? pcs.find(p => p.id === id) : null;
+  document.getElementById('pc-modal-title').textContent = id ? '預かりPC 編集' : '預かりPC 新規登録';
+  document.getElementById('pc-date').value = pc ? pc.date : today();
+  document.getElementById('pc-due').value = pc ? pc.due : '';
+  document.getElementById('pc-name').value = pc ? pc.name : '';
+  document.getElementById('pc-model').value = pc ? pc.model : '';
+  document.getElementById('pc-status').value = pc ? pc.status : '受付中';
+  document.getElementById('pc-memo').value = pc ? pc.memo : '';
+  openModal('pc-modal');
+}
+
+function savePc() {
+  const name = document.getElementById('pc-name').value.trim();
+  const model = document.getElementById('pc-model').value.trim();
+  if (!name || !model) { alert('お客様名と機種は必須です'); return; }
+  const pcs = load('pcs');
+  const item = {
+    id: editingId.pc || uid(),
+    date: document.getElementById('pc-date').value,
+    due: document.getElementById('pc-due').value,
+    name, model,
+    status: document.getElementById('pc-status').value,
+    memo: document.getElementById('pc-memo').value.trim(),
+  };
+  if (editingId.pc) {
+    const idx = pcs.findIndex(p => p.id === editingId.pc);
+    pcs[idx] = item;
+  } else {
+    pcs.unshift(item);
+  }
+  save('pcs', pcs);
+  closeModal('pc-modal');
+  renderPcTable();
+}
+
+function deletePc(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  save('pcs', load('pcs').filter(p => p.id !== id));
+  renderPcTable();
+}
+
+function renderPcTable() {
+  const pcs = load('pcs');
+  const search = document.getElementById('pc-search').value.toLowerCase();
+  const filter = document.getElementById('pc-filter').value;
+  const todayStr = today();
+  let active = 0, done = 0, todayCount = 0, overdue = 0;
+
+  const filtered = pcs.filter(p => {
+    if (filter && p.status !== filter) return false;
+    if (search && !p.name.toLowerCase().includes(search) && !p.model.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  pcs.forEach(p => {
+    if (p.status !== '引渡済') active++;
+    if (p.status === '修理完了') done++;
+    if (p.date === todayStr) todayCount++;
+    if (p.due && p.due < todayStr && p.status !== '引渡済') overdue++;
+  });
+
+  document.getElementById('pc-count-active').textContent = active;
+  document.getElementById('pc-count-done').textContent = done;
+  document.getElementById('pc-count-today').textContent = todayCount;
+  document.getElementById('pc-count-overdue').textContent = overdue;
+
+  const statusBadge = s => {
+    const map = { '受付中': 'blue', '修理中': 'yellow', '修理完了': 'green', '引渡済': 'gray' };
+    return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
+  };
+
+  const tbody = document.getElementById('pc-table-body');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">データがありません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(p => {
+    const overdueCls = p.due && p.due < todayStr && p.status !== '引渡済' ? 'style="color:var(--danger);font-weight:600"' : '';
+    return `<tr>
+      <td>${fmt(p.date)}</td>
+      <td>${p.name}</td>
+      <td>${p.model}</td>
+      <td>${statusBadge(p.status)}</td>
+      <td ${overdueCls}>${fmt(p.due)}</td>
+      <td style="max-width:160px;white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--text-sub)">${p.memo||'―'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openPcModal('${p.id}')">編集</button>
+        <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deletePc('${p.id}')">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== ルーター在庫（CCNアプリ連携） =====
+// CCNアプリのファイルパスをここに設定（同じフォルダに置いた場合）
+const CCN_APP_PATH = 'ccn-router.html';
+
+function openCcnApp() {
+  window.open(CCN_APP_PATH, '_blank');
+}
+
+function renderRouterSummary() {
+  const raw = localStorage.getItem('ccn_state');
+  const cards = document.getElementById('router-summary-cards');
+  const noData = document.getElementById('router-no-data');
+
+  if (!raw) {
+    cards.innerHTML = '';
+    noData.style.display = 'block';
+    return;
+  }
+
+  noData.style.display = 'none';
+
+  let state;
+  try { state = JSON.parse(raw); } catch(e) {
+    cards.innerHTML = '<p style="color:var(--text-light);">データの読み込みに失敗しました</p>';
+    return;
+  }
+
+  const areas = state.areas || [];
+  const routers = state.routers || [];
+
+  if (!areas.length) {
+    cards.innerHTML = '<p style="color:var(--text-light);padding:8px;">エリアが登録されていません</p>';
+    return;
+  }
+
+  cards.innerHTML = areas.map(area => {
+    const total = routers.filter(r => r.area === area).length;
+    const installed = routers.filter(r => r.area === area && r.status === 'installed').length;
+    const available = total - installed;
+    const pct = total > 0 ? Math.round((installed / total) * 100) : 0;
+
+    const statusCls = available === 0 ? 'zero' : available <= 3 ? 'low' : 'ok';
+    const badgeCls = available === 0 ? 'badge-red' : available <= 3 ? 'badge-yellow' : 'badge-green';
+    const badgeLabel = available === 0 ? '在庫切れ' : available <= 3 ? '残りわずか' : '在庫あり';
+
+    // プログレスバー色
+    const barColor = available === 0 ? 'var(--danger)' : available <= 3 ? 'var(--warning)' : 'var(--success)';
+
+    return `<div class="stock-card">
+      <h3 style="font-size:14px;font-weight:700;color:var(--text-sub);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        ${area}エリア
+        <span class="badge ${badgeCls}">${badgeLabel}</span>
+      </h3>
+      <div style="display:flex;gap:16px;margin-bottom:10px;">
+        <div>
+          <div class="stock-number ${statusCls}">${available}</div>
+          <div class="stock-detail">残在庫</div>
+        </div>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:var(--primary)">${installed}</div>
+          <div class="stock-detail">設置済</div>
+        </div>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:var(--text-sub)">${total}</div>
+          <div class="stock-detail">総在庫</div>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:4px;">
+        <div style="height:100%;border-radius:99px;background:${barColor};width:${pct}%;transition:width 0.4s;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-light);">設置率 ${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== 電話応対 =====
+function openPhoneModal(id = null) {
+  editingId.phone = id;
+  const phones = load('phones');
+  const p = id ? phones.find(x => x.id === id) : null;
+  document.getElementById('phone-modal-title').textContent = id ? '電話応対 編集' : '電話応対 記録';
+  document.getElementById('phone-date').value = p ? p.date : today();
+  document.getElementById('phone-time').value = p ? p.time : nowTime();
+  document.getElementById('phone-name').value = p ? p.name : '';
+  document.getElementById('phone-content').value = p ? p.content : '';
+  document.getElementById('phone-staff').value = p ? p.staff : '';
+  openModal('phone-modal');
+}
+
+function savePhone() {
+  const content = document.getElementById('phone-content').value.trim();
+  if (!content) { alert('応対内容を入力してください'); return; }
+  const phones = load('phones');
+  const item = {
+    id: editingId.phone || uid(),
+    date: document.getElementById('phone-date').value,
+    time: document.getElementById('phone-time').value,
+    name: document.getElementById('phone-name').value.trim(),
+    content,
+    staff: document.getElementById('phone-staff').value.trim(),
+  };
+  if (editingId.phone) {
+    const idx = phones.findIndex(p => p.id === editingId.phone);
+    phones[idx] = item;
+  } else {
+    phones.unshift(item);
+  }
+  save('phones', phones);
+  closeModal('phone-modal');
+  renderPhoneTable();
+}
+
+function deletePhone(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  save('phones', load('phones').filter(p => p.id !== id));
+  renderPhoneTable();
+}
+
+function renderPhoneTable() {
+  const phones = load('phones');
+  const search = document.getElementById('phone-search').value.toLowerCase();
+
+  const filtered = phones.filter(p => !search || p.content.toLowerCase().includes(search) || p.name.toLowerCase().includes(search));
+
+  const tbody = document.getElementById('phone-table-body');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">データがありません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(p => `<tr>
+    <td>${fmt(p.date)}</td>
+    <td>${p.time || '―'}</td>
+    <td>${p.name || '―'}</td>
+    <td style="max-width:200px;white-space:pre-wrap;word-break:break-all;">${p.content}</td>
+    <td>${p.staff || '―'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" onclick="openPhoneModal('${p.id}')">編集</button>
+      <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deletePhone('${p.id}')">削除</button>
+    </td>
+  </tr>`).join('');
+}
+
+// ===== 未処理案件 =====
+function openCaseModal(id = null) {
+  editingId.case = id;
+  const cases = load('cases');
+  const c = id ? cases.find(x => x.id === id) : null;
+  document.getElementById('case-modal-title').textContent = id ? '案件 編集' : '未処理案件 登録';
+  document.getElementById('case-date').value = c ? c.date : today();
+  document.getElementById('case-due').value = c ? c.due : '';
+  document.getElementById('case-priority').value = c ? c.priority : '中';
+  document.getElementById('case-content').value = c ? c.content : '';
+  document.getElementById('case-status').value = c ? c.status : '未処理';
+  document.getElementById('case-memo').value = c ? c.memo : '';
+  openModal('case-modal');
+}
+
+function saveCase() {
+  const content = document.getElementById('case-content').value.trim();
+  if (!content) { alert('案件内容を入力してください'); return; }
+  const cases = load('cases');
+  const item = {
+    id: editingId.case || uid(),
+    date: document.getElementById('case-date').value,
+    due: document.getElementById('case-due').value,
+    priority: document.getElementById('case-priority').value,
+    content,
+    status: document.getElementById('case-status').value,
+    memo: document.getElementById('case-memo').value.trim(),
+  };
+  if (editingId.case) {
+    const idx = cases.findIndex(c => c.id === editingId.case);
+    cases[idx] = item;
+  } else {
+    cases.unshift(item);
+  }
+  save('cases', cases);
+  closeModal('case-modal');
+  renderCaseTable();
+}
+
+function deleteCase(id) {
+  if (!confirm('この案件を削除しますか？')) return;
+  save('cases', load('cases').filter(c => c.id !== id));
+  renderCaseTable();
+}
+
+function renderCaseTable() {
+  const cases = load('cases');
+  const search = document.getElementById('case-search').value.toLowerCase();
+  const filter = document.getElementById('case-filter').value;
+  const todayStr = today();
+
+  let open = 0, high = 0, due = 0;
+  cases.forEach(c => {
+    if (c.status !== '完了') open++;
+    if (c.status !== '完了' && c.priority === '高') high++;
+    if (c.status !== '完了' && c.due === todayStr) due++;
+  });
+  document.getElementById('case-count-open').textContent = open;
+  document.getElementById('case-count-high').textContent = high;
+  document.getElementById('case-count-due').textContent = due;
+
+  const filtered = cases.filter(c => {
+    if (filter && c.status !== filter) return false;
+    if (search && !c.content.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const priorityBadge = p => {
+    if (p === '高') return `<span class="badge badge-red">高</span>`;
+    if (p === '中') return `<span class="badge badge-yellow">中</span>`;
+    return `<span class="badge badge-gray">低</span>`;
+  };
+  const statusBadge = s => {
+    const map = { '未処理': 'red', '対応中': 'yellow', '完了': 'green' };
+    return `<span class="badge badge-${map[s]||'gray'}">${s}</span>`;
+  };
+
+  const tbody = document.getElementById('case-table-body');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">データがありません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(c => {
+    const overdueCls = c.due && c.due < todayStr && c.status !== '完了' ? 'style="color:var(--danger);font-weight:600"' : '';
+    return `<tr>
+      <td>${fmt(c.date)}</td>
+      <td>${priorityBadge(c.priority)}</td>
+      <td style="max-width:180px;white-space:pre-wrap;word-break:break-all;">${c.content}</td>
+      <td ${overdueCls}>${fmt(c.due)}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td style="max-width:140px;white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--text-sub)">${c.memo||'―'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openCaseModal('${c.id}')">編集</button>
+        <button class="btn btn-sm" style="background:var(--danger-light);color:var(--danger);border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;" onclick="deleteCase('${c.id}')">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== 初期描画 =====
+renderPcTable();
+renderRouterSummary();
+renderPhoneTable();
+renderCaseTable();
+</script>
+</body>
+</html>
